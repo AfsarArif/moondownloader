@@ -160,7 +160,7 @@ Place in the same folder as `gen_1.py`:
 
 ## 🏗️ Architecture
 
-Single-file application (~1500 lines), structured in layers:
+Single-file application (~1350 lines), structured in layers:
 
 ```
 gen_1.py
