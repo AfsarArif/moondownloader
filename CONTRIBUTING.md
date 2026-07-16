@@ -29,3 +29,12 @@ Key layers:
 ## Reporting bugs
 
 Use the [bug report template](https://github.com/LeyckerS/moondownloader/issues/new?template=bug_report.yml) and include your `moontech_*.log` file if possible.
+
+
+## Coding style
+
+- 4-space indentation, no tabs.
+- Prefer f-strings over `%` or `.format()`.
+- Keep top-level constants uppercase (e.g. `RECV_CHUNK`, `WRITE_BUF`).
+- No blanket `except:` — always name the exception type or use `except Exception:` with a comment when the swallow is intentional.
+- Match the surrounding style. This project isn't linted by CI, so consistency comes from reading nearby code first.
