@@ -4,7 +4,9 @@
 
 ### **v14.1**
 
-**Lightning-fast bulk file downloader** for datanodes.to & fuckingfast.co
+**Lightning-fast bulk file downloader** — Playwright extraction + aiohttp streaming, 253 MB/s peak on 2.5 Gbps fiber.
+
+**Supported providers:** datanodes.to · fuckingfast.co · pluggable via regex or browser flow.
 
 Built with Python · Playwright · aiohttp
 
