@@ -70,8 +70,8 @@ A batch that contains one datanodes link opens exactly one shared Chrome, on dem
 extractors are running. The screenshot above is that fix, visible: 124 fuckingfast links moving at
 195.7 MB/s with no browser window anywhere.
 
-One `BrowserGate` in `moon_extract.py` owns that decision, so the WebView GUI, the Tk GUI
-(`start_tk.bat`) and the CLI all behave the same way — `test_no_chrome.py` asserts it for each of them.
+One `BrowserGate` in `moon_extract.py` owns that decision, so the GUI and the CLI behave the same
+way — `test_no_chrome.py` asserts it for both.
 
 ---
 
@@ -95,10 +95,6 @@ python moon_bridge.py            # GUI
 python moon_bridge.py --serve    # server only, prints the URL
 python moon_cli.py <url> ... -o <folder>   # headless CLI
 ```
-
-### Still want the old Tk GUI?
-
-`start_tk.bat` → runs `moon_tk.py`, untouched.
 
 ### Just want to look at the interface?
 
@@ -148,14 +144,11 @@ start.bat
                └── moon_extract.py   datanodes (Chrome+CDP) · fuckingfast (curl_cffi)
                                      BrowserGate: the launch, deferred
 
-moon_tk.py        the tkinter GUI, still runnable (start_tk.bat)
-moon_cli.py      headless CLI
-build_engine.py   regenerates moon_engine.py from a pristine moon_tk.py
+moon_cli.py       headless CLI, same engine, same extraction layer
 ```
 
-All three front-ends import the same `moon_extract`, so extraction, the Chrome lifecycle and the launch
-decision exist once. `moon_engine.py` is generated, never hand-edited: change `moon_tk.py`, then run
-`python build_engine.py`.
+Both front-ends import the same `moon_extract`, so extraction, the Chrome lifecycle and the launch
+decision exist once.
 
 **Pull model.** The page asks for `snapshot(cursor)` ~12 times per second instead of Python pushing at
 it: every DOM write stays on the page's own timeline and a late snapshot is a dropped frame, not a stall.
@@ -184,7 +177,7 @@ Full write-up: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 | [Architecture](docs/ARCHITECTURE.md) | how v16 is built, feature by feature |
 | [Engineering notes](docs/ENGINEERING_NOTES.md) | the measurements behind the design decisions |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | 403s, Turnstile failures, CDP conflicts, stalls |
-| [FAQ](docs/FAQ.md) | why the engine is generated, what `--browsers` means |
+| [FAQ](docs/FAQ.md) | why curl_cffi is mandatory, what `--browsers` means |
 | [Changelog](CHANGELOG.md) | every version since 14.0 |
 
 ---
@@ -226,7 +219,6 @@ python integration_http.py     # browser → loopback HTTP → engine (the path 
 python integration_web.py      # pywebview path
 python render_gui.py out/           # renders at 2554x1400 and 1440x900 + overflow audit
 python moon_engine.py          # headless engine: prints a snapshot and exits
-python build_engine.py        # regenerate moon_engine.py; a clean run means moon_tk.py still matches
 ```
 
 `test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no browser,
@@ -239,7 +231,7 @@ no display and no Playwright install — it runs in CI on every push (`.github/w
 - **OS:** Windows 10 / 11 (the GUI needs Edge or Chrome — both ship with Chromium)
 - **Python:** 3.10+
 - **Disk:** ~150 MB for the Playwright Chromium (datanodes only)
-- **Packages:** `aiohttp`, `playwright`, `curl_cffi`; `pillow` optional, `pywebview` optional
+- **Packages:** `aiohttp`, `playwright`, `curl_cffi`; `pywebview` optional
 
 ---
 

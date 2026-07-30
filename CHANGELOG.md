@@ -78,6 +78,11 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   that connection was parsed as garbage and answered 501
 
 ### Removed
+- **The tkinter GUI** (`moon_tk.py`, `start_tk.bat`) and **`build_engine.py`**, the generator
+  that produced `moon_engine.py` from it. Keeping it meant maintaining a second interface for
+  the same engine — and, worse, it made the legacy GUI the source of truth for the modern
+  engine. `moon_engine.py` is now a normal module. `pillow` drops out of the requirements
+  with it
 - `apply_patch.py` — the v14.1 → v14.8 migration patcher. Against the current tree it
   half-applies instead of failing: in testing it silently reverted `moon_cli.py`'s imports
   to the pre-`BrowserGate` API

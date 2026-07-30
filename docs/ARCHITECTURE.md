@@ -4,21 +4,26 @@ How v16 is put together, and why each piece is the way it is.
 
 ---
 
-## The GUI moved off tkinter
+## Why the GUI is not tkinter
 
-tkinter's canvas has **no anti-aliasing and no alpha channel**. Every circle, arc and
-rounded corner came out as steps, and glows were opaque rings blended against a known
-background. Its type and geometry were absolute too: on a 2560×1440 screen the text
-measured about **8 px of ink** and roughly a third of the window stayed empty.
+Up to v15 it was, and tkinter's canvas has **no anti-aliasing and no alpha channel**.
+Every circle, arc and rounded corner came out as steps, and glows were opaque rings
+blended against a known background. Its type and geometry were absolute too: on a
+2560×1440 screen the text measured about **8 px of ink** and roughly a third of the
+window stayed empty.
 
 v16 renders the interface in **Edge WebView2** — the same Chromium that already ships
 with Windows 10/11. GPU compositing: gradients, blur, shadows, transitions, subpixel
 anti-aliasing. Type scales with the window: `clamp()` moves the base from 16 px at
 1280 wide up to 19 px on a large monitor instead of staying nailed down.
 
-The async engine was **not** rewritten. `_run`, `_browser_worker`, `_do_dl`,
-`download_file`, `Telemetry` and `ProxyPool` are the 14.8 code, byte for byte, plus the
-lazy browser launch described below.
+The tkinter app was removed in v16.0: it was a second interface to maintain, and it was
+also the file the engine used to be generated from, which made the legacy GUI the source
+of truth for the modern engine. `moon_engine.py` is that engine, standing on its own.
+
+The async engine itself was **not** rewritten. `_run`, `_browser_worker`, `_do_dl`,
+`download_file`, `Telemetry` and `ProxyPool` are the 14.8 code, plus the lazy browser
+launch described below.
 
 ## Startup
 
@@ -50,8 +55,6 @@ python moon_bridge.py --pywebview    # pywebview window, backend pinned to edgec
 python moon_bridge.py --browser      # default browser
 python moon_bridge.py --serve        # server only, prints the URL
 ```
-
-The old Tk GUI still runs: `start_tk.bat` → `moon_tk.py`.
 
 Just want to look at the interface, without Python? Open `web/index.html` in Chrome or
 Edge — it boots in **demo mode** against a synthetic engine (a `DEMO` chip appears bottom
@@ -113,22 +116,21 @@ every number to its limits (`workers` 2–32, `dl_streams` 2–48, `retries` 0�
 | File | Role |
 |:--|:--|
 | `moon_bridge.py` | window host, OS dialogs, `settings.json` |
-| `moon_engine.py` | **generated** — the engine with no GUI + the JSON API |
-| `build_engine.py` | the generator: reads a pristine `moon_tk.py`, writes `moon_engine.py` |
+| `moon_engine.py` | the engine with no GUI + the JSON API |
 | `moon_extract.py` | extraction for both providers + the Chrome lifecycle + `BrowserGate` |
 | `web/index.html` | structure |
 | `web/styles.css` | everything visual |
 | `web/app.js` | rendering, the bridge, and a synthetic engine for the preview |
 | `web/assets/` | `mark.png`, `backdrop.png`, `window.png` |
-| `moon_tk.py` | the Tk GUI, and the source the engine is generated from |
 | `moon_cli.py` | the headless CLI |
 | `test_no_chrome.py` | asserts fuckingfast opens no browser |
 | `render_gui.py` | verification renders in headless Chromium |
 | `integration_http.py` | end-to-end: browser ↔ loopback HTTP ↔ Engine |
 | `integration_web.py` | end-to-end: pywebview ↔ Engine |
 
-`build_engine.py` **reads** `moon_tk.py`, it never writes it: the Tk app keeps working.
-`moon_engine.py` is generated — do not hand-edit it, regenerate it.
+`moon_engine.py` and `moon_cli.py` each carry their own copy of the download engine
+(`download_file`, `Telemetry`, `ProxyPool`); the extraction layer, the Chrome lifecycle and
+the launch decision are shared through `moon_extract.py`.
 
 ---
 
@@ -148,15 +150,13 @@ The decision now lives in one place, `moon_extract.BrowserGate`:
   `cf_clearance` profile needs anyway)
 - `aclose()` tears down in the right order: Chrome first, then the driver
 
-This holds for all three front-ends: the WebView GUI, the Tk GUI (`start_tk.bat`) and the
-CLI.
+This holds for both front-ends: the GUI and the CLI.
 
 ```bash
 python test_no_chrome.py
 ```
 
-Covers the engine and the CLI, and checks the sources of all three for a direct
-`open_browser(` call. It needs no browser, no display and no Playwright install — it runs
+Covers the engine and the CLI, and checks both sources for a direct `open_browser(` call. It needs no browser, no display and no Playwright install — it runs
 in CI on every push.
 
 ---
@@ -250,7 +250,6 @@ python integration_http.py     # browser → loopback HTTP → Engine (the path 
 python integration_web.py      # pywebview bridge → Engine (the --pywebview path)
 python render_gui.py out/           # renders at 2554x1400 and 1440x900 + an overflow audit
 python moon_engine.py          # headless engine: prints a snapshot and exits
-python build_engine.py        # regenerate the engine; git diff must stay empty
 ```
 
 `integration_http.py` is the one that matters: it starts the real server, opens the real

@@ -18,7 +18,7 @@ Extended version of the README quick start, for a first run.
 2. Download or clone this repo.
 3. Double-click **`start.bat`**.
 
-First run installs `aiohttp`, `playwright`, `curl_cffi` and `pillow`, then the
+First run installs `aiohttp`, `playwright` and `curl_cffi`, then the
 Chromium build. `start.bat` then starts a loopback HTTP server and opens the GUI in
 Edge (or Chrome) with `--app`: a window with no tabs and no address bar. There is no
 native GUI dependency.
@@ -45,10 +45,6 @@ python moon_cli.py --urls links.txt --output ./downloads --browsers 16 --streams
 `--browsers` is the number of parallel extraction **workers**, not browsers: Chrome
 opens once and only if a datanodes link shows up. `python moon_cli.py --help` for the
 rest.
-
-## Option 4 — the old Tk GUI
-
-`start_tk.bat` → `moon_tk.py`. Same engine, tkinter interface.
 
 ## Just want to look at the interface?
 

@@ -49,8 +49,8 @@ Fixed in v16. `moon_extract.BrowserGate` launches on the first datanodes link an
 before, in the WebView GUI, the Tk GUI and the CLI alike.
 
 If you still see it, you are running pre-v16 files: check that `moon_extract.py`
-contains `class BrowserGate` and that `moon_tk.py` / `moon_cli.py` / `moon_engine.py`
-contain no bare `open_browser(` call. `python test_no_chrome.py` answers this in a
+contains `class BrowserGate` and that `moon_engine.py` / `moon_cli.py` contain no bare
+`open_browser(` call. `python test_no_chrome.py` answers this in a
 second.
 
 ## Chrome will not attach: "could not start chrome.exe on port 9222"

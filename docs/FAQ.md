@@ -8,25 +8,18 @@ datanodes. `start.bat` is Windows-only, and the GUI needs a Chromium browser to 
 datanodes also needs a real Chrome/Edge for Turnstile; `find_chrome()` already looks in
 the usual macOS and Linux locations.
 
-## Why does the repo have `moon_tk.py` *and* `moon_engine.py`?
+## What happened to the tkinter GUI?
 
-`moon_tk.py` is the tkinter app: GUI and engine in one file. `moon_engine.py` is that same
-engine with the Tk layer removed, **generated** by `build_engine.py`:
-
-```bash
-python build_engine.py     # moon_tk.py -> moon_engine.py
-```
-
-Every replacement in the generator is exact-string and fails loudly, so the two cannot
-drift silently — CI regenerates the file and fails if the result differs. Edit
-`moon_tk.py`, then regenerate. Never hand-edit `moon_engine.py`.
+Removed in v16.0. It was a second interface to maintain for the same engine, and it was
+also the file `moon_engine.py` used to be generated from — which made the legacy GUI the
+source of truth for the modern engine. The generator went with it; `moon_engine.py` is a
+normal module you can edit.
 
 ## Is it still single-file?
 
 No. It was until 14.4, and the extraction rewrite ended that: `moon_extract.py` holds the
-extraction layer shared by all three front-ends, `moon_bridge.py` hosts the GUI,
-`web/` is the GUI. The `moon_tk.py` + `moon_cli.py` pair is still standalone-runnable, which
-was the actual point of the old rule.
+extraction layer, `moon_bridge.py` hosts the GUI, `web/` **is** the GUI, and `moon_cli.py`
+is still standalone-runnable, which was the actual point of the old rule.
 
 ## Why does fuckingfast need `curl_cffi`?
 
@@ -47,14 +40,14 @@ links.
 
 No, since v16. `moon_extract.BrowserGate` launches on the first datanodes link and never
 before — not even the Playwright driver's node process. `python test_no_chrome.py` asserts
-it for the engine and the CLI, and checks the sources of all three front-ends.
+it for the engine and the CLI, and checks both sources.
 
-## What's the difference between `moon_tk.py`, `moon_cli.py` and `moon_bridge.py`?
+## What's the difference between `moon_bridge.py` and `moon_cli.py`?
 
-Same engine, three front-ends.
+Same engine, two front-ends.
 
-- `moon_bridge.py` + `web/` — the v16 GUI: loopback HTTP, Edge/Chrome `--app` window
-- `moon_tk.py` — the tkinter GUI (`start_tk.bat`)
+- `moon_bridge.py` + `web/` + `moon_engine.py` — the GUI: loopback HTTP, Edge/Chrome
+  `--app` window
 - `moon_cli.py` — argparse CLI, prints to stdout, for scripting and headless boxes
 
 ## What does `--browsers` / `Extractors` actually control?
@@ -82,9 +75,9 @@ and fall back to Chrome.
 
 ## Can I add another provider?
 
-Yes — write the extractor in `moon_extract.py`, dispatch on the domain in `moon_tk.py` and
-`moon_cli.py`, then regenerate `moon_engine.py`. Ask `BrowserGate.get()` for a browser
-inside the branch that needs it, never before. `docs/PROVIDERS.md` has the full checklist.
+Yes — write the extractor in `moon_extract.py`, then dispatch on the domain in
+`moon_engine.py` and `moon_cli.py`. Ask `BrowserGate.get()` for a browser inside the branch
+that needs it, never before. `docs/PROVIDERS.md` has the full checklist.
 
 ## Why isn't there a Docker image?
 
