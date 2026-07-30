@@ -1,10 +1,10 @@
-"""Generate moon_engine.py (headless) from a pristine v14.8 gen_1.py.
+"""Generate moon_engine.py (headless) from gen_1.py.
 
 language: Python 3.10+, file: apply_web_v16.py, runtime: stdlib only
 
     python apply_web_v16.py [project_dir]
 
-gen_1.py is READ, never written: the v14.8 Tk app keeps working. What comes out
+gen_1.py is READ, never written: the Tk app keeps working. What comes out
 is moon_engine.py -- the same download engine with the Tk layer amputated and a
 JSON-shaped API bolted on, which moon_bridge.py drives from the WebView2 GUI.
 
@@ -90,7 +90,7 @@ MoonDownloader v16 -- headless engine
 GENERATED FILE. Do not edit by hand: run `python apply_web_v16.py` against a
 pristine gen_1.py and this file is rebuilt.
 
-The download engine of v14.8 with no GUI attached. State leaves through
+The download engine with no GUI attached. State leaves through
 Engine.snapshot(), commands come in through Engine.start()/stop(), and both are
 plain JSON-able dicts -- moon_bridge.py hands them straight to the WebView.
 
@@ -408,13 +408,12 @@ MAIN = '''
 if __name__ == "__main__":
     engine = Engine()
     print(json.dumps(engine.snapshot(0)["metrics"], indent=2))
-    print(f"{VERSION}  ·  headless engine ok  ·  avvia la GUI con: python moon_bridge.py")
+    print(f"{VERSION}  ·  headless engine ok  ·  start the GUI with: python moon_bridge.py")
 '''
 
 
 def build(src: str) -> str:
     # 0 ── version + module docstring ----------------------------------------
-    src = replace_once(src, 'VERSION = "v14.8"', 'VERSION = "v16.0"', "version bump")
     head_end = src.index('"""', src.index('"""') + 3) + 3
     src = HEADER + src[head_end:]
 
@@ -557,7 +556,7 @@ def main() -> int:
     dest.write_text(built, encoding="utf-8")
     print(f"[OK] {TARGET} generated  ·  {len(original.splitlines())} -> "
           f"{len(built.splitlines())} lines")
-    print("[OK] gen_1.py untouched (the v14.8 Tk app still runs)")
+    print("[OK] gen_1.py untouched (the Tk app still runs)")
     return 0
 
 

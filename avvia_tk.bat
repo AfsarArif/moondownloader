@@ -1,29 +1,29 @@
 @echo off
 cd /d "%~dp0"
 
-:: Find a working Python — test each candidate actually runs
+:: Find a working Python -- test each candidate actually runs
 set "PY="
 py --version >nul 2>&1 && set "PY=py"
 if not defined PY (python --version >nul 2>&1 && set "PY=python")
 if not defined PY (python3 --version >nul 2>&1 && set "PY=python3")
 if not defined PY (
-    echo [ERRORE] Python non trovato. Installa Python 3.10+ da https://www.python.org
-    echo          Assicurati di spuntare "Add Python to PATH" durante l'installazione.
+    echo [ERROR] Python not found. Install Python 3.10+ from https://www.python.org
+    echo         Make sure to tick "Add Python to PATH" during the installation.
     pause
     exit /b 1
 )
 
-echo Python trovato: %PY%
+echo Python found: %PY%
 
 %PY% -c "import aiohttp, playwright, curl_cffi, PIL" >nul 2>&1
 if errorlevel 1 (
-    echo Installazione dipendenze...
+    echo Installing dependencies...
     %PY% -m pip install -r requirements.txt || goto :err
     %PY% -m playwright install chromium || goto :err
 )
 
 if not exist "%LOCALAPPDATA%\ms-playwright" (
-    echo Installazione browser Chromium...
+    echo Installing the Chromium browser...
     %PY% -m playwright install chromium || goto :err
 )
 
@@ -34,6 +34,6 @@ start "" %PY% gen_1.py
 exit /b 0
 
 :err
-echo [ERRORE] Installazione fallita.
+echo [ERROR] Installation failed.
 pause
 exit /b 1

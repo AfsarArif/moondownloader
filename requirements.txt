@@ -1,6 +1,6 @@
 aiohttp>=3.9
 playwright>=1.40
-curl_cffi>=0.7        # Chrome TLS fingerprint — obbligatorio per fuckingfast.co
-pillow>=10.0          # opzionale — solo per rigenerare gli asset con prep_assets.py
-# pywebview NON serve: la GUI gira in Edge/Chrome (--app) servita da moon_bridge.py.
-# Installalo solo se vuoi provare "python moon_bridge.py --pywebview".
+curl_cffi>=0.7        # Chrome TLS fingerprint - required for fuckingfast.co
+pillow>=10.0          # optional - only to regenerate the assets with prep_assets.py
+# pywebview is NOT needed: the GUI runs in Edge/Chrome (--app) served by moon_bridge.py.
+# Install it only if you want to try "python moon_bridge.py --pywebview".

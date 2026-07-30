@@ -166,25 +166,25 @@ def main() -> int:
         badge = page.eval_on_selector("#fileBadge", "e => e.textContent")
         active_rows = page.evaluate(
             """() => document.querySelectorAll('.frow[data-state="download"], .frow[data-state="extract"], .frow[data-state="kill"], .frow[data-state="queue"]').length""")
-        print(f"badge={badge!r} righe attive={active_rows}")
+        print(f"badge={badge!r} active rows={active_rows}")
 
         checks = [
-            (forbidden == 403, f"token sbagliato accettato: HTTP {forbidden}"),
-            (not state["demo"], "la pagina crede di essere in demo, non collegata"),
+            (forbidden == 403, f"wrong token accepted: HTTP {forbidden}"),
+            (not state["demo"], "the page thinks it is in demo mode, not connected"),
             (state["pill"] in ("RUNNING", "DONE"), f"pill: {state['pill']!r}"),
-            (state["rows"] >= 4, f"solo {state['rows']} righe"),
-            (float(state["speed"]) > 0, f"velocita {state['speed']}"),
-            (float(state["bytes"]) > 0, f"byte scaricati {state['bytes']}"),
-            (int(state["done"]) >= 1, f"nessun file completato: {state['done']}"),
-            (state["ring"] not in ("", "0 100"), f"anello di progresso vuoto: {state['ring']!r}"),
-            ("fake:" in log_text, "le righe di log del motore non arrivano alla pagina"),
-            (tab_isolated, "la tab LOG mostra ancora la lista trasferimenti"),
-            (lang_default == "en", f"lingua di default {lang_default!r}, attesa en"),
+            (state["rows"] >= 4, f"only {state['rows']} rows"),
+            (float(state["speed"]) > 0, f"speed {state['speed']}"),
+            (float(state["bytes"]) > 0, f"downloaded bytes {state['bytes']}"),
+            (int(state["done"]) >= 1, f"no file completed: {state['done']}"),
+            (state["ring"] not in ("", "0 100"), f"empty progress ring: {state['ring']!r}"),
+            ("fake:" in log_text, "the engine log lines never reach the page"),
+            (tab_isolated, "the LOG tab still shows the transfer list"),
+            (lang_default == "en", f"default language {lang_default!r}, expected en"),
             (en_state == "saved" and it_state == "salvato",
-             f"il cambio lingua non rietichetta le righe: {en_state!r} -> {it_state!r}"),
-            (it_tab == "Trasferimenti", f"tab non tradotta: {it_tab!r}"),
+             f"switching language does not relabel the rows: {en_state!r} -> {it_state!r}"),
+            (it_tab == "Trasferimenti", f"tab not translated: {it_tab!r}"),
             (badge == str(active_rows) or (badge == "" and active_rows == 0),
-             f"badge {badge!r} non corrisponde alle {active_rows} righe attive"),
+             f"badge {badge!r} does not match the {active_rows} active rows"),
         ]
         for ok, msg in checks:
             if not ok:
@@ -194,9 +194,9 @@ def main() -> int:
             page.click("#btnStart")
             page.wait_for_timeout(1200)
             if engine._get("_running"):
-                problems.append("stop non arrivato al motore")
+                problems.append("stop never reached the engine")
             else:
-                print("stop ok · stato motore:", engine._state)
+                print("stop ok · engine state:", engine._state)
 
         # The wrong-token probe above deliberately provokes one 403; anything
         # else on the console is a real fault.

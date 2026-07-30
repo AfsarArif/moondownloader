@@ -189,24 +189,24 @@ GUI_SETTINGS_NEW = '''        # Settings — split per host, because the two met
         _slider(common, "Extractors", self._workers_var, 2, 32, "rec. 16")
         _slider(common, "DL streams", self._dl_conc_var, 2, 48, "rec. 8")
         _slider(common, "Retries",    self._retry_var,   0, 5,  "")
-        tk.Label(common, text="pochi stream = piu banda per file; la pipe e il tetto",
+        tk.Label(common, text="fewer streams = more bandwidth per file; the pipe is the ceiling",
                  font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x", pady=(3,0))
 
-        ff = _panel("FUCKINGFAST  \\u00b7  HTTP, NIENTE BROWSER")
-        tk.Label(ff, text=("\\u2713  curl_cffi attivo \\u2014 hx-redirect, ~0.25s per link"
+        ff = _panel("FUCKINGFAST  \\u00b7  HTTP, NO BROWSER")
+        tk.Label(ff, text=("\\u2713  curl_cffi active \\u2014 hx-redirect, ~0.25s per link"
                            if HAVE_CURL_CFFI else
-                           "\\u2717  curl_cffi MANCANTE \\u2014 pip install curl_cffi"),
+                           "\\u2717  curl_cffi MISSING \\u2014 pip install curl_cffi"),
                  font=("Courier",7), fg=(ACC2 if HAVE_CURL_CFFI else "#ff5555"),
                  bg=BG3, anchor="w").pack(fill="x")
-        tk.Label(ff, text="niente da regolare: non apre Chrome, non ha captcha",
+        tk.Label(ff, text="nothing to tune: opens no browser, has no captcha",
                  font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x")
 
         dn = _panel("DATANODES  \\u00b7  CHROME + TURNSTILE")
         _slider(dn, "Pages", self._dn_lanes_var, 1, 8, "rec. 3")
-        _slider(dn, "Captcha s", self._dn_capwait_var, 30, 600, "attesa manuale")
+        _slider(dn, "Captcha s", self._dn_capwait_var, 30, 600, "manual wait")
         _entry(dn, "Chrome", self._dn_chrome_var, browse=self._pick_chrome)
         _entry(dn, "API key", self._dn_apikey_var, show="\\u2022")
-        tk.Label(dn, text="pagine = tab sulla stessa finestra/identita (non finestre separate)",
+        tk.Label(dn, text="pages = tabs on one window/identity, not separate windows",
                  font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x", pady=(3,0))'''
 
 GUI_PICKER_OLD = '''    def _pick_folder(self):
@@ -218,8 +218,8 @@ GUI_PICKER_NEW = '''    def _pick_folder(self):
 
     def _pick_chrome(self):
         f = filedialog.askopenfilename(
-            title="Seleziona chrome.exe / msedge.exe",
-            filetypes=[("Chrome / Edge", "chrome.exe msedge.exe"), ("Tutti", "*.*")])
+            title="Select chrome.exe / msedge.exe",
+            filetypes=[("Chrome / Edge", "chrome.exe msedge.exe"), ("All files", "*.*")])
         if f: self._dn_chrome_var.set(f)'''
 
 GUI_RUNSTART_OLD = '''        n, d, r = self._workers_var.get(), self._dl_conc_var.get(), self._retry_var.get()'''
@@ -239,8 +239,8 @@ GUI_LOG_OLD = ('        self.log(f"\u25b6  {len(urls)} links  \u00b7  {n} browse
                '{d} streams  \u00b7  {r} retries  \u00b7  {VERSION}", "info")')
 GUI_LOG_NEW = ('        self.log(f"\u25b6  {len(urls)} links  \u00b7  {n} extractors  \u00b7  '
                '{d} streams  \u00b7  {r} retries  \u00b7  {VERSION}", "info")\n'
-               '        self.log(f"   fuckingfast: HTTP diretto"\n'
-               '                 f"{\'\' if eff[\'curl_cffi\'] else \'  \u2717 curl_cffi MANCANTE\'}"\n'
+               '        self.log(f"   fuckingfast: direct HTTP"\n'
+               '                 f"{\'\' if eff[\'curl_cffi\'] else \'  \u2717 curl_cffi MISSING\'}"\n'
                '                 f"   \u00b7   datanodes: {eff[\'lanes\']} pages, '
                'captcha {eff[\'captcha_wait\']}s"\n'
                '                 f"{\', API key\' if eff[\'api_key\'] else \'\'}", "dim")\n'
