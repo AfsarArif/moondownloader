@@ -1,6 +1,6 @@
 # Troubleshooting
 
-## `avvia.bat` says "Python non trovato"
+## `avvia.bat` says "Python not found"
 
 Python is missing, or not on `PATH`.
 
@@ -53,7 +53,7 @@ contains `class BrowserGate` and that `gen_1.py` / `gen_cli.py` / `moon_engine.p
 contain no bare `open_browser(` call. `python test_no_chrome.py` answers this in a
 second.
 
-## Chrome will not attach: "impossibile avviare chrome sulla porta 9222"
+## Chrome will not attach: "could not start chrome.exe on port 9222"
 
 Chrome refuses `--remote-debugging-port` on a `--user-data-dir` that another Chrome
 process already has open.

@@ -50,6 +50,13 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   one browser each
 - CI byte-compiles every module, runs `test_no_chrome.py`, and regenerates `moon_engine.py` from
   `gen_1.py` to prove the two have not drifted
+- **The repository is English throughout** — launcher output, engine warnings, Tk labels, OS dialog
+  titles, module docstrings and test assertions. The GUI's runtime EN/IT switch is unaffected
+- Documentation restructured: the two Italian guides became
+  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+  [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) and
+  [`docs/ENGINEERING_NOTES.md`](docs/ENGINEERING_NOTES.md), and the README carries a documentation
+  index
 
 ### Fixed
 - **fuckingfast batches launched Chrome.** Every front-end called `open_browser()` once per worker

@@ -125,6 +125,9 @@ Open `web/index.html` in Chrome or Edge. It boots in **demo mode** with a synthe
 
 > Fewer DL streams means more bandwidth per file; the pipe is still the ceiling.
 
+Environment variables, the dedicated Chrome profile and the API-key limits are in
+**[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
+
 ---
 
 ## 🏗️ Architecture
@@ -158,6 +161,23 @@ four times a second on **its own** window, kept separate from the stall detector
 
 **Untrusted input.** Everything the page sends passes through `Engine.apply_cfg()`, which coerces and
 clamps every number before it reaches a semaphore.
+
+Full write-up: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+---
+
+## 📚 Documentation
+
+| Document | What's in it |
+|:--|:--|
+| [Quick start](docs/QUICKSTART.md) | install, first run, what each setting does |
+| [Configuration](docs/CONFIGURATION.md) | every setting, every environment variable, the Chrome profile |
+| [Providers](docs/PROVIDERS.md) | how each host is extracted, and how to add another |
+| [Architecture](docs/ARCHITECTURE.md) | how v16 is built, feature by feature |
+| [Engineering notes](docs/ENGINEERING_NOTES.md) | the measurements behind the design decisions |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | 403s, Turnstile failures, CDP conflicts, stalls |
+| [FAQ](docs/FAQ.md) | why the engine is generated, what `--browsers` means |
+| [Changelog](CHANGELOG.md) | every version since 14.0 |
 
 ---
 

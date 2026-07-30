@@ -47,6 +47,8 @@ Layers inside the engine:
 - **Any change to `gen_1.py`'s shared logic must be mirrored in `gen_cli.py`.**
 - **No new dependencies without a strong reason.** The stack is deliberately small:
   `aiohttp`, `playwright`, `curl_cffi`, with `pillow` optional.
+- **English only.** Code, comments, log lines, dialog titles and docs. The GUI's EN/IT
+  dictionary in `web/app.js` is the one exception — that is the runtime language switch.
 
 ## Verification
 
