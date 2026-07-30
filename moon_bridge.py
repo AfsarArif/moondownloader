@@ -1,36 +1,35 @@
 """
-MoonDownloader v16 -- host della GUI
-════════════════════════════════════════
-language: Python 3.10+, file: moon_bridge.py, runtime: stdlib (pywebview opzionale)
+MoonDownloader v16 -- the GUI host
+═══════════════════════════════════════
+language: Python 3.10+, file: moon_bridge.py, runtime: stdlib (pywebview optional)
 
-    python moon_bridge.py                 # apre Edge/Chrome in modalita app
-    python moon_bridge.py --pywebview     # forza la finestra pywebview
-    python moon_bridge.py --browser       # apre il browser predefinito
-    python moon_bridge.py --serve         # solo server, stampa l'URL
-    MOON_DEBUG=1 python moon_bridge.py    # log delle richieste
+    python moon_bridge.py                 # opens Edge/Chrome in app mode
+    python moon_bridge.py --pywebview     # force the pywebview window
+    python moon_bridge.py --browser       # open the default browser
+    python moon_bridge.py --serve         # server only, prints the URL
+    MOON_DEBUG=1 python moon_bridge.py    # log every request
 
-Perche non pywebview per default
+Why pywebview is not the default
 ────────────────────────────────
-pywebview su Windows sceglie il backend a runtime e, se il ponte .NET verso
-WebView2 non si carica (pythonnet assente, runtime Evergreen mancante), **ripiega
-in silenzio su MSHTML** -- Trident, il motore di IE11. Li dentro CSS grid,
-system-ui, clamp(), color-mix() e backdrop-filter non esistono: la GUI si
-srotola in una colonna con gli slider nativi blu. Nessun messaggio, nessun
-errore: solo una pagina del 2013.
+pywebview picks its Windows backend at runtime and, when the .NET bridge to
+WebView2 fails to load (no pythonnet, no Evergreen runtime), it **falls back to
+MSHTML silently** -- Trident, the IE11 engine. In there CSS grid, system-ui,
+clamp(), color-mix() and backdrop-filter do not exist: the GUI unrolls into one
+column with native blue sliders. No message, no error, just a page from 2013.
 
-Quindi il default e' l'inverso: un server HTTP locale piu' Edge (o Chrome) lanciato
-con `--app=`, che apre una finestra senza barre e senza schede -- stessa resa di
-Chromium, zero dipendenze native, nessun backend da indovinare.
+So the default is the other way round: a local HTTP server plus Edge (or Chrome)
+launched with `--app=`, which opens a window with no tabs and no address bar --
+the same Chromium rendering, no native dependency, no backend to guess.
 
-Sicurezza del server locale
-───────────────────────────
-Il socket ascolta solo su 127.0.0.1, su una porta libera scelta dal kernel, e ogni
-chiamata /api/ deve portare il token generato a ogni avvio. Senza token: 403.
-L'API puo' avviare download e leggere percorsi, quindi non e' una formalita'.
+Local server security
+─────────────────────
+The socket listens on 127.0.0.1 only, on a free port chosen by the kernel, and
+every /api/ call must carry the token minted at startup. No token: 403. The API
+starts downloads and reads paths, so this is not a formality.
 
-*Il server si spegne da solo dopo IDLE_EXIT_S senza richieste: la pagina fa polling
-ogni 80 ms, percio' "nessuna richiesta" significa "finestra chiusa" e l'app esce
-invece di restare un processo orfano in background.*
+*The server exits by itself after IDLE_EXIT_S with no requests: the page polls every
+80 ms, so "no requests" means "the window is closed" and the app exits instead of
+lingering as an orphan process.*
 """
 from __future__ import annotations
 
@@ -108,13 +107,13 @@ except Exception:
     pass
 kind = sys.argv[1]
 if kind == "folder":
-    out = filedialog.askdirectory(title="Cartella di destinazione")
+    out = filedialog.askdirectory(title="Destination folder")
 elif kind == "chrome":
-    out = filedialog.askopenfilename(title="Scegli chrome.exe",
-        filetypes=[("chrome.exe", "chrome.exe"), ("Eseguibili", "*.exe"), ("Tutti", "*.*")])
+    out = filedialog.askopenfilename(title="Select chrome.exe",
+        filetypes=[("chrome.exe", "chrome.exe"), ("Executables", "*.exe"), ("All files", "*.*")])
 else:
-    out = filedialog.askopenfilename(title="Scegli il file dei link",
-        filetypes=[("Testo", "*.txt"), ("Tutti", "*.*")])
+    out = filedialog.askopenfilename(title="Select the links file",
+        filetypes=[("Text", "*.txt"), ("All files", "*.*")])
 sys.stdout.write(out or "")
 '''
 
@@ -345,7 +344,7 @@ def run_pywebview(api: Api) -> int:
     try:
         import webview
     except ImportError:
-        print("pywebview non installato:  pip install pywebview", file=sys.stderr)
+        print("pywebview is not installed:  pip install pywebview", file=sys.stderr)
         return 2
     from moon_engine import VERSION
     window = webview.create_window(
@@ -390,25 +389,25 @@ def main(argv: list[str]) -> int:
         browser = find_chromium()
         if browser:
             child = launch_app_window(browser, url)
-            print(f"finestra: {os.path.basename(browser)} --app")
+            print(f"window: {os.path.basename(browser)} --app")
         else:
             mode = "browser"
-            print("Edge/Chrome non trovati: apro il browser predefinito")
+            print("Edge/Chrome not found: opening the default browser")
     if mode == "browser":
         webbrowser.open(url)
 
     if mode == "serve":
-        print("Ctrl+C per chiudere.")
+        print("Ctrl+C to stop.")
 
     try:
         while True:
             time.sleep(1.0)
             if child is not None and child.poll() is not None:
-                print("finestra chiusa")
+                print("window closed")
                 break
             idle = time.monotonic() - server.last_seen
             if mode != "serve" and idle > IDLE_EXIT_S:
-                print(f"nessuna richiesta da {idle:.0f}s: chiudo")
+                print(f"no requests for {idle:.0f}s: exiting")
                 break
     except KeyboardInterrupt:
         pass

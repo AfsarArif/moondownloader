@@ -595,8 +595,8 @@ async def dn_solve_turnstile(page, headless: bool) -> bool:
             if headless:
                 _d("turnstile unsolved and browser is headless — no human to ask")
                 return False
-            print("\n  >>> Spunta il captcha 'Verify you are human' nella finestra "
-                  f"del browser (attendo {int(DN_MANUAL_CAPTCHA_TIMEOUT)}s) <<<\n",
+            print("\n  >>> Tick the 'Verify you are human' checkbox in the browser "
+                  f"window (waiting {int(DN_MANUAL_CAPTCHA_TIMEOUT)}s) <<<\n",
                   flush=True)
 
         await asyncio.sleep(0.6)
@@ -1008,8 +1008,8 @@ async def open_browser(pw, launch_args: list[str], headless: bool | None = None)
 
         exe = find_chrome()
         if not exe:
-            print("MoonDownloader: Chrome non trovato, uso il Chromium di Playwright "
-                  "(Turnstile probabilmente fallira). Imposta MOON_CHROME_PATH.",
+            print("MoonDownloader: no real Chrome found, falling back to Playwright's "
+                  "Chromium (Turnstile will most likely fail). Set MOON_CHROME_PATH.",
                   file=sys.stderr)
             return await pw.chromium.launch(**kw), False
 
@@ -1017,14 +1017,14 @@ async def open_browser(pw, launch_args: list[str], headless: bool | None = None)
         if not _cdp_alive(port):
             ok = await _spawn_chrome(exe, port, profile, kw["headless"])
             if not ok:
-                print(f"MoonDownloader: impossibile avviare {exe} sulla porta {port}; "
-                      "uso il Chromium di Playwright.", file=sys.stderr)
+                print(f"MoonDownloader: could not start {exe} on port {port}; "
+                      "falling back to Playwright's Chromium.", file=sys.stderr)
                 return await pw.chromium.launch(**kw), False
         try:
             _CDP_BROWSER = await pw.chromium.connect_over_cdp(f"http://127.0.0.1:{port}")
         except Exception as e:
-            print(f"MoonDownloader: CDP attach fallito ({str(e)[:70]}); "
-                  "uso il Chromium di Playwright.", file=sys.stderr)
+            print(f"MoonDownloader: CDP attach failed ({str(e)[:70]}); "
+                  "falling back to Playwright's Chromium.", file=sys.stderr)
             return await pw.chromium.launch(**kw), False
 
         _d(f"attached to real Chrome: {exe} (port {port}, profile {profile})")
@@ -1287,7 +1287,7 @@ def configure(*, lanes: int | None = None, chrome_path: str | None = None,
 
     return {
         "lanes": DN_LANES,
-        "chrome": CHROME_PATH or (find_chrome() or "non trovato"),
+        "chrome": CHROME_PATH or (find_chrome() or "not found"),
         "api_key": bool(DN_API_KEY),
         "captcha_wait": int(DN_MANUAL_CAPTCHA_TIMEOUT),
         "headless": DN_HEADLESS,
