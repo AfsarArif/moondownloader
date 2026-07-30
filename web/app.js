@@ -3,7 +3,7 @@
    MoonDownloader v16 — GUI logic
 
    Transports (same promise shape, picked at boot):
-     · http       -> POST /api/<name> on the loopback server (avvia.bat)
+     · http       -> POST /api/<name> on the loopback server (start.bat)
      · pywebview  -> window.pywebview.api, when hosted from file://
      · mock       -> synthetic engine, for opening index.html on its own
 
@@ -251,7 +251,7 @@ function showEngineWarning() {
   box.innerHTML = "<b style='font-size:19px'>Rendering engine too old</b>"
     + "<p>This window is running on MSHTML (Internet Explorer), not Edge:"
     + " the GUI cannot be drawn.</p>"
-    + "<p>Close it and launch <b>avvia.bat</b>, which opens the GUI in Edge/Chrome"
+    + "<p>Close it and launch <b>start.bat</b>, which opens the GUI in Edge/Chrome"
     + " with <code>--app</code> and does not depend on pywebview.</p>";
   document.body.appendChild(box);
 }

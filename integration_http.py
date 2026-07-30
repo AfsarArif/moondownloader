@@ -2,7 +2,7 @@
 
     python3 integration_http.py [screenshot.png]
 
-This is the path avvia.bat actually takes on Windows: moon_bridge serves web/ on
+This is the path start.bat actually takes on Windows: moon_bridge serves web/ on
 127.0.0.1 with a per-run token, Edge (Chromium) loads it in --app mode. Here the
 same server is driven by Playwright's Chromium, so the transport, the token
 check, the JSON routing and every render function are all under test.

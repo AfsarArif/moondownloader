@@ -12,7 +12,7 @@ Asserted here, for the WebView engine and for the CLI:
 
     1. fuckingfast-only -> zero browsers, zero Playwright driver boots
     2. one datanodes link -> exactly one shared browser, torn down exactly once
-    3. no front-end calls open_browser() outside the gate  (static, covers gen_1.py,
+    3. no front-end calls open_browser() outside the gate  (static, covers moon_tk.py,
        which cannot be imported without a display)
 
 Network, extraction and Chrome are all stubbed at the moon_extract level: what is
@@ -35,12 +35,12 @@ sys.path.insert(0, str(HERE))
 
 import moon_extract                                   # noqa: E402
 import moon_engine                                    # noqa: E402
-import gen_cli                                        # noqa: E402
+import moon_cli                                        # noqa: E402
 
 FF = [f"https://fuckingfast.co/x{n}/pack.part{n:02d}.rar" for n in range(1, 4)]
 DN = ["https://datanodes.to/y1/pack.part99.rar"]
 
-FRONT_ENDS = ("gen_1.py", "gen_cli.py", "moon_engine.py")
+FRONT_ENDS = ("moon_tk.py", "moon_cli.py", "moon_engine.py")
 
 calls = {"playwright": 0, "open_browser": 0, "close_browser": 0, "shutdown_chrome": 0}
 
@@ -94,11 +94,11 @@ def install_stubs() -> None:
     moon_extract.shutdown_chrome   = fake_shutdown_chrome
 
     # Each front-end imported the extractors by name into its own namespace.
-    for host in (moon_engine, gen_cli):
+    for host in (moon_engine, moon_cli):
         host.extract_fuckingfast = fake_ff
         host.extract_datanodes   = fake_dn
         host.close_ff_session    = lambda: asyncio.sleep(0)
-    gen_cli.download_file = fake_download
+    moon_cli.download_file = fake_download
 
 
 # ── runners ───────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ def run_engine(engine, urls, label) -> dict:
 def run_cli(urls, label) -> dict:
     reset()
     with tempfile.TemporaryDirectory() as out:
-        asyncio.run(gen_cli.run(urls, out, 4, 4, 1, "proxies.txt"))
+        asyncio.run(moon_cli.run(urls, out, 4, 4, 1, "proxies.txt"))
         done = len(os.listdir(out))
     return report(label, dict(calls, ok=len(urls) if done == 0 else done, fail=0))
 
@@ -145,7 +145,7 @@ def check(result, label, urls, want_browsers: int, problems: list[str]) -> None:
 
 
 def check_sources(problems: list[str]) -> None:
-    """gen_1.py needs a display to run; its launch path is checked as source."""
+    """moon_tk.py needs a display to run; its launch path is checked as source."""
     for name in FRONT_ENDS:
         text = (HERE / name).read_text(encoding="utf-8")
         if re.search(r"(?<!def )(?<!fake_)open_browser\s*\(", text):
