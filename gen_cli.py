@@ -48,50 +48,6 @@ LAUNCH_ARGS = [
     "--disable-backgrounding-occluded-windows",
 ]
 
-BLOCKED_RES  = {"image", "media", "font", "ping", "stylesheet"}
-BLOCKED_DOMS = {
-    "google-analytics", "googletagmanager", "doubleclick", "googlesyndication",
-    "facebook.net", "hotjar", "clarity.ms", "thewsere", "justinepulvino", "unridhoncho",
-    "adsbygoogle", "googletag", "cloudflareinsights", "static.cloudflareinsights",
-    "challenges.cloudflare", "cdn.jsdelivr", "fonts.googleapis", "fonts.gstatic",
-    "downloadprotector.com", "oundhertobeconsist.org", "lootlabs",
-}
-
-DEAD_LINK_JS = """() => {
-    const txt = document.body?.innerText?.toLowerCase() || '';
-    return txt.includes('file not found') || txt.includes('file was deleted')
-        || txt.includes('file has been removed') || txt.includes('no file')
-        || txt.includes('not be found') || txt.includes('unavailable');
-}"""
-
-REMOVE_OVERLAYS_JS = """() => {
-    document.querySelectorAll('body > div').forEach(el => {
-        const s = el.getAttribute('style') || '';
-        if (s.includes('z-index') && !el.id && el.className === '') el.remove();
-    });
-}"""
-
-FIND_BTN_JS = """(txt) => {
-    let best=null,bsz=Infinity;
-    for(const el of document.querySelectorAll('*')){
-        let t='';
-        for(const n of el.childNodes)if(n.nodeType===3)t+=n.textContent;
-        t=t.trim().toLowerCase();
-        if(t.includes(txt)){const r=el.getBoundingClientRect(),s=r.width*r.height;
-        if(s>0&&s<bsz){best=el;bsz=s;}}
-    }
-    if(best){best.click();return true;}return false;
-}"""
-
-HAS_BTN_JS = """(txt) => {
-    for(const el of document.querySelectorAll('*')){
-        let t='';
-        for(const n of el.childNodes)if(n.nodeType===3)t+=n.textContent;
-        if(t.trim().toLowerCase().includes(txt))return true;
-    }
-    return false;
-}"""
-
 _WIN_INVALID = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 def _sanitize_filename(name: str) -> str:
@@ -250,114 +206,40 @@ class Telemetry:
                        "files": [asdict(r) for r in recs]}, f, indent=2)
         return lp, jp
 
-# ── EXTRACTION ─────────────────────────────────────────────────────────────────
-async def extract_fuckingfast(url: str) -> str | None:
-    try:
-        async with _sess().get(url, headers={"User-Agent": random.choice(USER_AGENTS)}) as r:
-            m = re.search(r'https://(?:dl\.)?fuckingfast\.co/dl/[a-zA-Z0-9_-]+', await r.text())
-            return m.group() if m else None
-    except Exception: return None
+# ── EXTRACTION ────────────────────────────────────────────────────────────────
+# Both host front-ends changed in 2026; the extraction layer now lives in
+# moon_extract.py so gen_1.py and gen_cli.py share one implementation.
+from moon_extract import (                       # noqa: E402
+    extract_fuckingfast,
+    extract_datanodes,
+    open_browser,
+    close_browser,
+    shutdown_chrome,
+    close_ff_session,
+    referer_for,
+    HAVE_CURL_CFFI,
+    DN_API_KEY,
+    DN_LANES,
+)
+import moon_extract as _moon_extract            # noqa: E402
 
-async def extract_datanodes(context, url: str) -> tuple[str|None, str|None]:
-    page         = await context.new_page()
-    captured     = asyncio.Event()
-    proxy_holder : list[str] = []
+# The degraded no-curl_cffi fuckingfast path, and the lane pool's per-context user
+# agent, both reuse this module's own HTTP/UA plumbing.
+_moon_extract._sess = _sess
+_moon_extract.USER_AGENTS = USER_AGENTS
 
-    async def on_route(route):
-        u, rt = route.request.url, route.request.resource_type
-        if rt in BLOCKED_RES or any(d in u for d in BLOCKED_DOMS):
-            await route.abort(); return
-        if "dlproxy" in u and len(u) > 50:
-            proxy_holder.append(u); captured.set(); await route.abort(); return
-        await route.continue_()
+if DN_API_KEY:
+    print("datanodes: MOON_DN_API_KEY set - trying the API first "
+          "(direct_link requires a premium account; free keys get 403 "
+          "and fall back to the browser)")
 
-    await page.route("**/*", on_route)
-    proxy_url = cookies_str = None
+if not HAVE_CURL_CFFI:
+    print("WARNING: curl_cffi is not installed. fuckingfast.co will fail with "
+          "Cloudflare 403 on every link \u2014 run: pip install curl_cffi",
+          file=sys.stderr)
 
-    async def poll(text: str, timeout: float) -> bool:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            try:
-                if await page.evaluate(HAS_BTN_JS, text): return True
-            except Exception: pass
-            await asyncio.sleep(0.2)
-        return False
-
-    try:
-        resp = await page.goto(url, wait_until="domcontentloaded", timeout=20000)
-        if not resp or resp.status >= 400: return None, None
-
-        # Fast-fail on dead/removed file pages
-        try:
-            if await page.evaluate(DEAD_LINK_JS): return None, None
-        except Exception: pass
-
-        # Step 1: submit the landing form (op=download1)
-        submitted = False
-        deadline = time.monotonic() + 15.0
-        while time.monotonic() < deadline:
-            try:
-                done = await page.evaluate("""() => {
-                    const form = document.getElementById('downloadForm');
-                    if (!form) return false;
-                    const inp = document.createElement('input');
-                    inp.type='hidden'; inp.name='method_free'; inp.value='Free Download >>';
-                    form.appendChild(inp); form.submit(); return true;
-                }""")
-                if done: submitted = True; break
-            except Exception: pass
-            await asyncio.sleep(0.3)
-        if not submitted: return None, None
-
-        # Wait for navigation after form submit
-        try: await page.wait_for_load_state("domcontentloaded", timeout=15000)
-        except Exception: pass
-
-        # Fast-fail after form submit if file doesn't exist
-        try:
-            if await page.evaluate(DEAD_LINK_JS): return None, None
-        except Exception: pass
-
-        # Remove ad overlays so JS clicks reach real buttons
-        try: await page.evaluate(REMOVE_OVERLAYS_JS)
-        except Exception: pass
-
-        # Step 2: click "Free Download" button (Vue SPA)
-        if not await poll("free download", 15.0): return None, None
-        await page.evaluate(FIND_BTN_JS, "free download")
-        for _ in range(50):
-            await asyncio.sleep(0.08)
-            ads = [p for p in context.pages if p != page]
-            if ads:
-                for ap in ads:
-                    try: await ap.close()
-                    except Exception: pass
-                break
-        await asyncio.sleep(0.3)
-
-        # Step 3: wait for countdown, then click "Start Download"
-        if not await poll("start download", 90.0): return None, None
-        try: await page.evaluate(REMOVE_OVERLAYS_JS)
-        except Exception: pass
-        await page.evaluate(FIND_BTN_JS, "start download")
-        try: await asyncio.wait_for(captured.wait(), 15.0)
-        except asyncio.TimeoutError:
-            try: await page.evaluate(REMOVE_OVERLAYS_JS)
-            except Exception: pass
-            await page.evaluate(FIND_BTN_JS, "start download")
-            try: await asyncio.wait_for(captured.wait(), 10.0)
-            except asyncio.TimeoutError: pass
-
-        if proxy_holder:
-            proxy_url   = proxy_holder[0]
-            cookies_str = "; ".join(
-                f"{c['name']}={c['value']}" for c in await context.cookies())
-    except Exception: pass
-    finally:
-        try: await page.close()
-        except Exception: pass
-
-    return proxy_url, cookies_str
+print(f"datanodes: up to {DN_LANES} persistent browser window(s) "
+      "(set MOON_DN_LANES to change)")
 
 # ── DOWNLOAD ───────────────────────────────────────────────────────────────────
 class _StallKill(Exception): pass
@@ -380,7 +262,7 @@ async def download_file(
 
     for att in range(DL_INNER_RETRIES):
         resume = os.path.getsize(tmp) if os.path.exists(tmp) else 0
-        ref = "https://fuckingfast.co/" if "fuckingfast" in proxy_url else "https://datanodes.to/"
+        ref = referer_for(proxy_url)
         hdrs = {
             "User-Agent": random.choice(USER_AGENTS),
             "Referer":    ref,
@@ -619,15 +501,11 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
                         async with tasks_lock: all_tasks.append(t)
                         success = True
                 elif "datanodes.to" in parsed.netloc:
-                    ctx = await browser.new_context(
-                        user_agent=USER_AGENTS[wid % len(USER_AGENTS)],
-                        viewport={"width": 1280, "height": 800}, locale="en-US",
-                        extra_http_headers={"Accept-Language": "en-US,en;q=0.9"})
-                    try:
-                        proxy_url, cookies = await extract_datanodes(ctx, url)
-                    finally:
-                        try: await ctx.close()
-                        except Exception: pass
+                    # API key set -> single JSON GET, no browser, no captcha.
+                    # Otherwise extract_datanodes() re-validates the shared
+                    # Chrome (respawning it if it died) and checks out one
+                    # window from the persistent lane pool internally.
+                    proxy_url, cookies = await extract_datanodes(browser, url)
                     rec.extract_s = time.monotonic() - t_start
                     if not proxy_url:
                         print("  [fail] No URL extracted")
@@ -661,12 +539,11 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
 
     async with async_playwright() as p:
         async def _launch(wid):
-            b = await p.chromium.launch(headless=True, args=LAUNCH_ARGS)
+            b, _shared = await open_browser(p, LAUNCH_ARGS)
             try:
                 await browser_worker(b, wid)
             finally:
-                try: await b.close()
-                except Exception: pass
+                await close_browser(b, _shared)
         await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
 
     async with tasks_lock:
@@ -677,6 +554,8 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
 
     stop_progress.set()
     await _close_sess()
+    await close_ff_session()
+    await shutdown_chrome()
     await _PROXY_POOL.close_all()
     telem.finish()
 

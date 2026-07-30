@@ -1,25 +1,32 @@
 """
-MoonDownloader  v14.1
-━━━━━━━━━━━━━━━━━━━━
-Single-file GUI application for bulk downloading from datanodes.to
-and fuckingfast.co. Uses Playwright for URL extraction and aiohttp
-for high-concurrency async downloads.
+MoonDownloader v16 -- headless engine
+════════════════════════════════════════
+GENERATED FILE. Do not edit by hand: run `python apply_web_v16.py` against a
+pristine gen_1.py and this file is rebuilt.
 
-bytes_acc is collections.deque(maxlen=200000) — bounded growth.
-Shared GUI counters protected by threading.Lock (async thread ↔ tkinter thread).
+The download engine of v14.8 with no GUI attached. State leaves through
+Engine.snapshot(), commands come in through Engine.start()/stop(), and both are
+plain JSON-able dicts -- moon_bridge.py hands them straight to the WebView.
+
+Thread model
+────────────
+    * the caller's thread (the WebView bridge) only ever touches start/stop/
+      snapshot/scan_tmp
+    * one worker thread runs asyncio.run(self._run(...))
+    * every shared counter sits behind self._lock; the log ring behind
+      self._log_lock
+
+*snapshot() is called ~12x/second, so it copies counters under the lock and does
+its arithmetic outside it -- holding the lock through the ETA maths would stall
+every download worker that wants to bump a byte count.*
 """
-import os, re, ctypes, asyncio, threading, tkinter as tk
-import math, time, random, traceback, json, datetime, collections, io
-from tkinter import filedialog, scrolledtext
+
+import os, re, asyncio, threading
+import time, random, traceback, json, datetime, collections, io
+from contextlib import AsyncExitStack
 from urllib.parse import urlparse, unquote
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, asdict
-
-try:
-    from PIL import Image, ImageTk
-    PIL_OK = True
-except ImportError:
-    PIL_OK = False
 
 import aiohttp
 from playwright.async_api import async_playwright
@@ -40,7 +47,7 @@ TEXT3   = "#3d506e"
 OK      = "#00e676"
 ERR     = "#ff4d6d"
 WARN    = "#ffb547"
-VERSION = "v14.8"
+VERSION = "v16.0"
 
 # ── TUNING ─────────────────────────────────────────────────────────────────────
 DEFAULT_DL_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads", "datanodes")
@@ -205,6 +212,8 @@ class FileRecord:
     error        : str   = ""
     avg_mbs      : float = 0.0
     queue_wait_s : float = 0.0
+    done_bytes   : int   = 0      # live, published by download_file
+    live_mbs     : float = 0.0    # live, 3s window
     notes        : list  = field(default_factory=list)
 
 class Telemetry:
@@ -427,6 +436,11 @@ async def download_file(
                 mode = "ab" if resume > 0 else "wb"
                 f = open(tmp, mode)
                 speed_win  : collections.deque = collections.deque(maxlen=8000)
+                # Separate window for the UI: stall detection prunes
+                # speed_win on a 60s cutoff, so sharing one deque would
+                # let the row speed eat the stall detector's history.
+                pub_win    : collections.deque = collections.deque(maxlen=600)
+                last_pub   = dl_t0
                 downloaded = resume
                 last_check = dl_t0
 
@@ -438,6 +452,7 @@ async def download_file(
                         now         = time.monotonic()
                         downloaded += len(chunk)
                         speed_win.append((now, len(chunk)))
+                        pub_win.append((now, len(chunk)))
                         bytes_acc.append((now, len(chunk)))
                         buf.append(chunk); bufsz += len(chunk)
                         if bufsz >= WRITE_BUF:
@@ -445,6 +460,18 @@ async def download_file(
                             await loop.run_in_executor(_POOL, _write, f, data)
 
                         elapsed = now - dl_t0
+
+                        # Publish live progress for the GUI's rows at ~4 Hz.
+                        # Two attribute writes cost nothing against a 4 MB
+                        # socket read, and snapshot() reads rec directly.
+                        if now - last_pub >= 0.25:
+                            last_pub = now
+                            pub_cut  = now - 3.0
+                            while pub_win and pub_win[0][0] < pub_cut:
+                                pub_win.popleft()
+                            pub_span = max(now - pub_win[0][0], 0.25) if pub_win else 1.0
+                            rec.done_bytes = downloaded
+                            rec.live_mbs   = sum(b for _, b in pub_win) / pub_span / 1_048_576
 
                         # ── Stall detection ──────────────────────────────────
                         if effective_detect and (now - last_check) >= STALL_CHECK_S:
@@ -497,36 +524,29 @@ async def download_file(
     return False, "max retries", 0
 
 
-class App(tk.Tk):
+class Engine:
 
     def __init__(self):
-        super().__init__()
-        self.title("MoonDownloader")
-        self.geometry("1060x720")
-        self.minsize(900, 580)
-        self.configure(bg=BG)
-        self.resizable(True, True)
-        try: ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception: pass
-
-        # ── State ──────────────────────────────────────────────────────────
-        self._out_folder  = tk.StringVar(value=DEFAULT_DL_FOLDER)
-        self._mode        = tk.StringVar(value="download")
-        self._workers_var = tk.IntVar(value=16)
-        self._dl_conc_var = tk.IntVar(value=48)
-        self._retry_var   = tk.IntVar(value=3)
-        # datanodes-only knobs — previously env vars that needed setx + a restart
-        self._dn_lanes_var   = tk.IntVar(value=DN_LANES)
-        self._dn_capwait_var = tk.IntVar(value=int(_moon_extract.DN_MANUAL_CAPTCHA_TIMEOUT))
-        self._dn_chrome_var  = tk.StringVar(value=_moon_extract.CHROME_PATH
-                                            or (_moon_extract.find_chrome() or ""))
-        self._dn_apikey_var  = tk.StringVar(value=DN_API_KEY)
-        self._link_count  = tk.StringVar(value="0 links")
-        self._logo_img    = None
+        # Settings arrive from the GUI on start(); these are the fallbacks used
+        # for the first paint and for a start() that omits a field.
+        self._cfg = {
+            "out_folder": DEFAULT_DL_FOLDER,
+            "mode":       "download",
+            "workers":    16,
+            "dl_streams": 48,
+            "retries":    3,
+            # Defaults asked for by the operator, not by the library: 8 lanes
+            # and the shortest manual-captcha wait the extractor accepts.
+            "dn_pages":   8,
+            "dn_captcha": 30,
+            "dn_chrome":  _moon_extract.CHROME_PATH or (_moon_extract.find_chrome() or ""),
+            "dn_apikey":  DN_API_KEY,
+        }
 
         self._lock       = threading.Lock()
         self._running    = False
         self._stop_flag  = False
+        self._state      = "idle"
         self._url_total  = 0; self._url_done = 0
         self._dl_total   = 0; self._dl_done  = 0
         self._ok         = 0; self._fail     = 0
@@ -534,512 +554,44 @@ class App(tk.Tk):
         self._dls        = 0
         self._bytes_acc  : collections.deque = collections.deque(maxlen=200000)
         self._t0         = 0.0
+        self._proxies    = 0
 
-        self._log_buf  : list[tuple[str,str]] = []
-        self._log_lock = threading.Lock()
-        self._pulse_ph = 0.0
-        self._pulse_on = False
+        # Live FileRecord registry: the GUI reads these objects every snapshot,
+        # so a row's speed and percentage come off the download loop itself
+        # instead of a second copy that can go stale.
+        self._tracked : dict[str, FileRecord] = {}
 
-        self._alive = True
-        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        # Bounded log ring + a monotonic cursor. The GUI asks for "everything
+        # after N"; if it fell behind further than the ring, it gets the oldest
+        # line still held instead of a gap it cannot detect.
+        self._log_ring  : collections.deque = collections.deque(maxlen=6000)
+        self._log_total = 0
+        self._log_lock  = threading.Lock()
 
-        self._build()
-        self._pulse_tick()
-        self._ui_loop()
-        self._log_flush_loop()
+        self._alive  = True
+        self._thread = None
 
-    def _on_close(self):
-        self._alive = False
-        try: self.destroy()
-        except Exception: pass
-
-    # ── helpers ────────────────────────────────────────────────────────────
     def _inc(self, attr, delta=1):
         with self._lock: setattr(self, attr, getattr(self, attr) + delta)
 
     def _get(self, attr):
         with self._lock: return getattr(self, attr)
 
-    def _load_logo(self, size=44):
-        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png")
-        if not os.path.exists(p): return None
-        if PIL_OK:
-            return ImageTk.PhotoImage(
-                Image.open(p).convert("RGBA").resize((size, size), Image.LANCZOS))
-        try:
-            raw = tk.PhotoImage(file=p)
-            return raw.subsample(max(1, raw.width()//size))
-        except Exception: return None
-
-    # ── BUILD ──────────────────────────────────────────────────────────────
-    def _build(self):
-        self._build_header()
-        body = tk.Frame(self, bg=BG)
-        body.pack(fill="both", expand=True, padx=0, pady=0)
-        self._build_left(body)
-        self._build_right(body)
-        self._build_footer()
-
-    def _build_header(self):
-        h = tk.Frame(self, bg=BG2, height=60)
-        h.pack(fill="x")
-        h.pack_propagate(False)
-
-        # Left: logo + name
-        left = tk.Frame(h, bg=BG2)
-        left.pack(side="left", padx=20, pady=10)
-
-        self._logo_img = self._load_logo(40)
-        if self._logo_img:
-            tk.Label(left, image=self._logo_img, bg=BG2, bd=0).pack(side="left", padx=(0,10))
-
-        nameframe = tk.Frame(left, bg=BG2)
-        nameframe.pack(side="left")
-        tk.Label(nameframe, text="Moon", font=("Courier",16,"bold"),
-                 fg=TEXT, bg=BG2).pack(side="left")
-        tk.Label(nameframe, text="Downloader",
-                 font=("Courier",16,"bold"), fg=ACC, bg=BG2).pack(side="left")
-        tk.Label(nameframe, text=f"  {VERSION}",
-                 font=("Courier",9), fg=TEXT3, bg=BG2).pack(side="left")
-
-        # Right: status pill
-        right = tk.Frame(h, bg=BG2)
-        right.pack(side="right", padx=20)
-
-        self._status_frame = tk.Frame(right, bg=SURFACE,
-                                       highlightbackground=BORDER, highlightthickness=1)
-        self._status_frame.pack(ipady=5, ipadx=12)
-        inner = tk.Frame(self._status_frame, bg=SURFACE)
-        inner.pack()
-
-        self._dot_c = tk.Canvas(inner, width=8, height=8, bg=SURFACE, highlightthickness=0)
-        self._dot_c.pack(side="left", padx=(0,6))
-        self._dot = self._dot_c.create_oval(1,1,7,7, fill=TEXT3, outline="")
-        self._status_var = tk.StringVar(value="IDLE")
-        tk.Label(inner, textvariable=self._status_var,
-                 font=("Courier",8,"bold"), fg=TEXT2, bg=SURFACE).pack(side="left")
-
-        # Separator
-        tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
-
-    def _build_left(self, parent):
-        left = tk.Frame(parent, bg=BG, width=340)
-        left.pack(side="left", fill="y", padx=(16,8), pady=14)
-        left.pack_propagate(False)
-
-        # Links input
-        self._label(left, "INPUT LINKS")
-        lf = tk.Frame(left, bg=BG3, highlightbackground=BORDER, highlightthickness=1)
-        lf.pack(fill="x")
-        self._links = scrolledtext.ScrolledText(
-            lf, height=9, font=("Courier",9), bg=BG3, fg=TEXT2,
-            insertbackground=ACC, relief="flat", bd=8, wrap="none",
-            selectbackground=ACC2, selectforeground=TEXT)
-        self._links.pack(fill="both")
-        self._links.bind("<KeyRelease>", self._upd_count)
-
-        br = tk.Frame(left, bg=BG); br.pack(fill="x", pady=(5,0))
-        self._btn(br, "📂 Load .txt", self._load_file).pack(side="left")
-        self._btn(br, "✕ Clear", self._clear_links).pack(side="left", padx=(6,0))
-        tk.Label(br, textvariable=self._link_count,
-                 font=("Courier",8), fg=ACC3, bg=BG).pack(side="right")
-
-        # Output folder
-        self._label(left, "OUTPUT FOLDER", top=12)
-        ff = tk.Frame(left, bg=BG3, highlightbackground=BORDER, highlightthickness=1)
-        ff.pack(fill="x")
-        tk.Entry(ff, textvariable=self._out_folder, font=("Courier",8),
-                 bg=BG3, fg=TEXT2, insertbackground=ACC, relief="flat",
-                 bd=8, highlightthickness=0).pack(side="left", fill="x", expand=True)
-        tk.Button(ff, text="…", command=self._pick_folder,
-                  font=("Courier",9), bg=SURFACE, fg=TEXT2,
-                  activebackground=BORDER, relief="flat", bd=0,
-                  cursor="hand2", padx=10, pady=5).pack(side="right")
-
-        # Mode toggle
-        self._label(left, "MODE", top=12)
-        mf = tk.Frame(left, bg=BG3, highlightbackground=BORDER, highlightthickness=1)
-        mf.pack(fill="x")
-        self._mode_btns = []
-        self._mbtn(mf, "⬇  Download", "download").pack(side="left", fill="x", expand=True)
-        self._mbtn(mf, "🔗  Links only", "links").pack(side="left", fill="x", expand=True)
-
-        # Settings — split per host, because the two methods no longer share a
-        # mechanism: fuckingfast is pure HTTP (no browser, no captcha), datanodes
-        # is Chrome + Turnstile. One "Browsers" slider could not describe both.
-        def _panel(title, top=10):
-            self._label(left, title, top=top)
-            box = tk.Frame(left, bg=BG3, highlightbackground=BORDER, highlightthickness=1)
-            box.pack(fill="x")
-            inner = tk.Frame(box, bg=BG3); inner.pack(fill="x", padx=10, pady=8)
-            return inner
-
-        def _slider(parent, label, var, frm, to, hint):
-            row = tk.Frame(parent, bg=BG3); row.pack(fill="x", pady=2)
-            tk.Label(row, text=label, font=("Courier",8), fg=TEXT2,
-                     bg=BG3, width=11, anchor="w").pack(side="left")
-            if hint:
-                tk.Label(row, text=hint, font=("Courier",7), fg=TEXT3,
-                         bg=BG3).pack(side="right")
-            tk.Scale(row, from_=frm, to=to, orient="horizontal", variable=var,
-                     font=("Courier",7), fg=TEXT3, bg=BG3, troughcolor=SURFACE,
-                     activebackground=ACC, highlightthickness=0, bd=0,
-                     sliderrelief="flat", showvalue=True).pack(side="left", fill="x", expand=True)
-
-        def _entry(parent, label, var, browse=None, show=None):
-            row = tk.Frame(parent, bg=BG3); row.pack(fill="x", pady=2)
-            tk.Label(row, text=label, font=("Courier",8), fg=TEXT2,
-                     bg=BG3, width=11, anchor="w").pack(side="left")
-            if browse:
-                tk.Button(row, text="\u2026", command=browse, font=("Courier",8),
-                          bg=SURFACE, fg=TEXT2, activebackground=BORDER,
-                          relief="flat", bd=0, cursor="hand2", padx=7).pack(side="right")
-            tk.Entry(row, textvariable=var, font=("Courier",8), bg=SURFACE,
-                     fg=TEXT2, insertbackground=ACC, relief="flat", bd=4,
-                     show=show, highlightthickness=0).pack(side="left", fill="x", expand=True)
-
-        common = _panel("SETTINGS  \u00b7  COMMON", top=12)
-        _slider(common, "Extractors", self._workers_var, 2, 32, "rec. 16")
-        _slider(common, "DL streams", self._dl_conc_var, 2, 48, "rec. 8")
-        _slider(common, "Retries",    self._retry_var,   0, 5,  "")
-        tk.Label(common, text="pochi stream = piu banda per file; la pipe e il tetto",
-                 font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x", pady=(3,0))
-
-        ff = _panel("FUCKINGFAST  \u00b7  HTTP, NIENTE BROWSER")
-        tk.Label(ff, text=("\u2713  curl_cffi attivo \u2014 hx-redirect, ~0.25s per link"
-                           if HAVE_CURL_CFFI else
-                           "\u2717  curl_cffi MANCANTE \u2014 pip install curl_cffi"),
-                 font=("Courier",7), fg=(ACC2 if HAVE_CURL_CFFI else "#ff5555"),
-                 bg=BG3, anchor="w").pack(fill="x")
-        tk.Label(ff, text="niente da regolare: non apre Chrome, non ha captcha",
-                 font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x")
-
-        dn = _panel("DATANODES  \u00b7  CHROME + TURNSTILE")
-        _slider(dn, "Pages", self._dn_lanes_var, 1, 8, "rec. 3")
-        _slider(dn, "Captcha s", self._dn_capwait_var, 30, 600, "attesa manuale")
-        _entry(dn, "Chrome", self._dn_chrome_var, browse=self._pick_chrome)
-        _entry(dn, "API key", self._dn_apikey_var, show="\u2022")
-        tk.Label(dn, text="pagine = tab sulla stessa finestra/identita (non finestre separate)",
-                 font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x", pady=(3,0))
-
-        # START button
-        self._start_btn = tk.Button(
-            left, text="▶   START", command=self._toggle,
-            font=("Courier",12,"bold"), bg=ACC2, fg=BG,
-            activebackground=ACC, activeforeground=BG,
-            relief="flat", bd=0, cursor="hand2")
-        self._start_btn.pack(fill="x", pady=(14,0), ipady=13)
-
-    def _build_right(self, parent):
-        right = tk.Frame(parent, bg=BG)
-        right.pack(side="right", fill="both", expand=True, padx=(0,16), pady=14)
-
-        # ── Stats row ──────────────────────────────────────────────────────
-        stats_row = tk.Frame(right, bg=BG)
-        stats_row.pack(fill="x", pady=(0,10))
-
-        self._stat_cards = {}
-        cards = [
-            ("speed",   "SPEED",     "—",      ACC),
-            ("done",    "DONE",      "0/0",    OK),
-            ("kills",   "KILLS",     "0",      WARN),
-            ("eta",     "ETA",       "—",      TEXT2),
-        ]
-        for key, label, init, color in cards:
-            c = tk.Frame(stats_row, bg=BG2,
-                         highlightbackground=BORDER, highlightthickness=1)
-            c.pack(side="left", fill="x", expand=True, padx=(0,6))
-            inn = tk.Frame(c, bg=BG2); inn.pack(padx=10, pady=7)
-            tk.Label(inn, text=label, font=("Courier",7), fg=TEXT3,
-                     bg=BG2).pack(anchor="w")
-            v = tk.StringVar(value=init)
-            tk.Label(inn, textvariable=v, font=("Courier",13,"bold"),
-                     fg=color, bg=BG2).pack(anchor="w")
-            self._stat_cards[key] = v
-
-        # ── Progress bars ──────────────────────────────────────────────────
-        pb_frame = tk.Frame(right, bg=BG2,
-                             highlightbackground=BORDER, highlightthickness=1)
-        pb_frame.pack(fill="x", pady=(0,10))
-        pb_inn = tk.Frame(pb_frame, bg=BG2); pb_inn.pack(fill="x", padx=12, pady=10)
-
-        self._phase_var = tk.StringVar(value="—")
-        tk.Label(pb_inn, textvariable=self._phase_var,
-                 font=("Courier",8,"bold"), fg=GOLD, bg=BG2, anchor="w").pack(fill="x", pady=(0,6))
-
-        for row_n, lbl, cv_a, bar_a, col in [
-            (0, "URL", "_url_cv", "_url_bar", ACC2),
-            (1, "DL ", "_dl_cv",  "_dl_bar",  ACC3),
-        ]:
-            row = tk.Frame(pb_inn, bg=BG2); row.pack(fill="x", pady=(0,3))
-            tk.Label(row, text=lbl, font=("Courier",7), fg=TEXT3,
-                     bg=BG2, width=3).pack(side="left")
-            cv = tk.Canvas(row, height=6, bg=SURFACE, highlightthickness=0)
-            cv.pack(side="left", fill="x", expand=True, padx=(4,0))
-            bar = cv.create_rectangle(0,0,0,6, fill=col, width=0)
-            setattr(self, cv_a, cv); setattr(self, bar_a, bar)
-            cv.bind("<Configure>", lambda e: self._draw_bars())
-
-        # ── Log ────────────────────────────────────────────────────────────
-        log_header = tk.Frame(right, bg=SURFACE,
-                               highlightbackground=BORDER, highlightthickness=1)
-        log_header.pack(fill="x")
-        lh_inn = tk.Frame(log_header, bg=SURFACE); lh_inn.pack(fill="x", padx=10, pady=5)
-
-        for col in [OK, ERR, WARN]:
-            c = tk.Canvas(lh_inn, width=8, height=8, bg=SURFACE, highlightthickness=0)
-            c.pack(side="left", padx=(0,3))
-            c.create_oval(1,1,7,7, fill=col, outline="")
-
-        tk.Label(lh_inn, text="LIVE OUTPUT", font=("Courier",7,"bold"),
-                 fg=TEXT3, bg=SURFACE).pack(side="left", padx=(6,0))
-        tk.Button(lh_inn, text="CLEAR", command=self._clear_log,
-                  font=("Courier",7), bg=SURFACE, fg=TEXT3,
-                  activebackground=BORDER, relief="flat", bd=0,
-                  cursor="hand2", padx=6).pack(side="right")
-
-        log_body = tk.Frame(right, bg=BG2,
-                             highlightbackground=BORDER, highlightthickness=1)
-        log_body.pack(fill="both", expand=True)
-        self._log_w = scrolledtext.ScrolledText(
-            log_body, font=("Courier",9), bg=BG2, fg=TEXT2,
-            insertbackground=ACC, relief="flat", bd=10,
-            state="disabled", wrap="word",
-            selectbackground=ACC2, selectforeground=TEXT)
-        self._log_w.pack(fill="both", expand=True, padx=1, pady=1)
-        for tag, col in [("ok",OK),("fail",ERR),("warn",WARN),
-                         ("info",ACC),("dim",TEXT3),("retry",WARN),("kill",WARN)]:
-            self._log_w.tag_config(tag, foreground=col)
-
-    def _build_footer(self):
-        tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
-        f = tk.Frame(self, bg=BG2, height=24)
-        f.pack(fill="x"); f.pack_propagate(False)
-        tk.Label(f, text="MoonDownloader  ·  python · playwright · aiohttp",
-                 font=("Courier",7), fg=TEXT3, bg=BG2).pack(side="left", padx=14, pady=4)
-        tk.Label(f, text="datanodes.to  ·  fuckingfast.co",
-                 font=("Courier",7), fg=TEXT3, bg=BG2).pack(side="right", padx=14, pady=4)
-
-    # ── Widget helpers ─────────────────────────────────────────────────────
-    def _label(self, p, t, top=0):
-        tk.Label(p, text=t, font=("Courier",7,"bold"),
-                 fg=TEXT3, bg=BG, anchor="w").pack(fill="x", pady=(top,3))
-
-    def _btn(self, p, t, cmd):
-        return tk.Button(p, text=t, command=cmd, font=("Courier",8),
-                         bg=SURFACE, fg=TEXT2, activebackground=BORDER,
-                         activeforeground=TEXT, relief="flat", bd=0,
-                         cursor="hand2", padx=8, pady=4)
-
-    def _mbtn(self, p, t, val):
-        def toggle():
-            self._mode.set(val)
-            for b, v in self._mode_btns:
-                active = v == self._mode.get()
-                b.config(bg=ACC2 if active else BG3,
-                         fg=BG if active else TEXT2)
-        btn = tk.Button(p, text=t, command=toggle, font=("Courier",8),
-                        relief="flat", bd=0, cursor="hand2", padx=6, pady=7,
-                        bg=ACC2 if val=="download" else BG3,
-                        fg=BG if val=="download" else TEXT2)
-        self._mode_btns.append((btn, val)); return btn
-
-    # ── Animation ──────────────────────────────────────────────────────────
-    def _pulse_tick(self):
-        if not self._alive: return
-        if self._pulse_on:
-            self._pulse_ph = (self._pulse_ph + 0.12) % (2 * math.pi)
-            v = int(100 + 155 * (0.5 + 0.5 * math.sin(self._pulse_ph)))
-            self._dot_c.itemconfig(self._dot, fill=f"#{0:02x}{v:02x}{min(v+20,255):02x}")
-        else:
-            self._dot_c.itemconfig(self._dot, fill=TEXT3)
-        if self._alive: self.after(80, self._pulse_tick)
-
-    def _draw_bars(self):
-        with self._lock:
-            url_done, url_total = self._url_done, self._url_total
-            dl_done,  dl_total  = self._dl_done,  self._dl_total
-        for cv, bar, done, total, col in [
-            (self._url_cv, self._url_bar, url_done, url_total, ACC2),
-            (self._dl_cv,  self._dl_bar,  dl_done,  dl_total,  ACC3),
-        ]:
-            w   = cv.winfo_width()
-            pct = done / total if total else 0
-            cv.coords(bar, 0, 0, max(int(w * pct), 0), 6)
-            cv.itemconfig(bar, fill=col)
-
-    # ── UI loop ────────────────────────────────────────────────────────────
-    def _ui_loop(self):
-        if self._get("_running"):
-            with self._lock:
-                el       = time.monotonic() - self._t0
-                url_done = self._url_done; url_tot = self._url_total
-                dl_done  = self._dl_done;  dl_tot  = self._dl_total
-                ok       = self._ok; fail = self._fail
-                kills    = self._kills; dls = self._dls
-
-            ur = url_done / el if el > 0 else 0
-
-            now  = time.monotonic()
-            snap = list(self._bytes_acc)          # atomic copy — safe across threads
-            cut  = now - 3.0
-            recent = [(t, b) for t, b in snap if t > cut]
-            if len(recent) > 1:
-                span = max(now - recent[0][0], 0.05)
-                mbs  = sum(b for _, b in recent) / span / 1_048_576
-            else:
-                mbs = 0.0
-
-            # Byte-based ETA — uses full session history
-            total_downloaded = sum(b for _, b in snap)
-            files_remaining  = dl_tot - dl_done
-            if mbs > 0.1 and files_remaining > 0 and dl_done > 0:
-                avg_file_bytes  = total_downloaded / dl_done
-                remaining_bytes = files_remaining * avg_file_bytes
-                eta = min(remaining_bytes / (mbs * 1_048_576), 7200)
-            else:
-                eta = 0
-
-            # Update stats cards
-            spd_str = (f"{mbs:.1f} MB/s" if mbs >= 1 else f"{mbs*1024:.0f} KB/s") if mbs > 0 else "—"
-            self._stat_cards["speed"].set(spd_str)
-            self._stat_cards["done"].set(f"{dl_done}/{dl_tot}")
-            self._stat_cards["kills"].set(str(kills))
-            self._stat_cards["eta"].set(f"{int(eta//60)}m {int(eta%60)}s" if eta > 0 else "—")
-
-            # Phase
-            gb_dl = total_downloaded / 1e9
-            gb_str = f"  ·  {gb_dl:.2f} GB" if gb_dl >= 0.01 else ""
-            if url_done < url_tot:
-                phase = f"Extracting [{url_done}/{url_tot}]  +  Downloading [{dl_done}/{dl_tot} done · {dls} active]{gb_str}"
-            elif dl_done < dl_tot:
-                phase = f"Downloading  [{dl_done}/{dl_tot} done  ·  {dls} active]{gb_str}"
-            else:
-                phase = f"Done{gb_str}"
-
-            self._phase_var.set(phase)
-            self._draw_bars()
-
-        if self._alive: self.after(1000 // UI_HZ, self._ui_loop)
-
-    # ── Log ────────────────────────────────────────────────────────────────
     _LOG_MAX_LINES = 2000
 
-    def _log_flush_loop(self):
-        with self._log_lock: msgs, self._log_buf = self._log_buf, []
-        if msgs:
-            self._log_w.config(state="normal")
-            for msg, tag in msgs: self._log_w.insert("end", msg+"\n", tag)
-            # Prune oldest lines to keep the widget fast
-            lines = int(self._log_w.index("end-1c").split(".")[0])
-            if lines > self._LOG_MAX_LINES:
-                self._log_w.delete("1.0", f"{lines - self._LOG_MAX_LINES}.0")
-            self._log_w.see("end"); self._log_w.config(state="disabled")
-        if self._alive: self.after(1000 // LOG_HZ, self._log_flush_loop)
-
     def log(self, msg, tag=""):
-        with self._log_lock: self._log_buf.append((msg, tag))
+        """Thread-safe: called from the asyncio worker, drained by snapshot()."""
+        with self._log_lock:
+            self._log_ring.append((str(msg), tag))
+            self._log_total += 1
 
-    # ── File/folder dialogs ────────────────────────────────────────────────
-    def _load_file(self):
-        p = filedialog.askopenfilename(
-            filetypes=[("Text files","*.txt"),("All","*.*")])
-        if p:
-            with open(p,"r",encoding="utf-8",errors="replace") as f:
-                self._links.delete("1.0","end")
-                self._links.insert("1.0",f.read().strip())
-            self._upd_count()
-
-    def _clear_links(self):
-        self._links.delete("1.0","end"); self._upd_count()
-
-    def _upd_count(self, *_):
-        n = sum(1 for l in self._links.get("1.0","end").splitlines() if l.strip())
-        self._link_count.set(f"{n} link{'s' if n!=1 else ''}")
-
-    def _pick_folder(self):
-        d = filedialog.askdirectory()
-        if d: self._out_folder.set(d)
-
-    def _pick_chrome(self):
-        f = filedialog.askopenfilename(
-            title="Seleziona chrome.exe / msedge.exe",
-            filetypes=[("Chrome / Edge", "chrome.exe msedge.exe"), ("Tutti", "*.*")])
-        if f: self._dn_chrome_var.set(f)
-
-    def _clear_log(self):
-        with self._log_lock: self._log_buf.clear()
-        self._log_w.config(state="normal")
-        self._log_w.delete("1.0","end")
-        self._log_w.config(state="disabled")
-
-    def _set_status(self, t, active=False):
-        self._status_var.set(t); self._pulse_on = active
-
-    # ── Start / Stop ───────────────────────────────────────────────────────
-    def _toggle(self):
-        if self._get("_running"):
-            with self._lock: self._stop_flag = True
-            self._start_btn.config(text="⏹   STOPPING…", bg="#7a1010", fg=TEXT)
-            return
-
-        urls = [l.strip() for l in self._links.get("1.0","end").splitlines() if l.strip()]
-        if not urls: self.log("⚠  No links.", "warn"); return
-
-        with self._lock:
-            self._running=True; self._stop_flag=False
-            self._url_total=len(urls); self._url_done=0
-            self._dl_total=len(urls);  self._dl_done=0
-            self._ok=0; self._fail=0; self._kills=0
-            self._browsers=0; self._dls=0
-            self._bytes_acc.clear(); self._t0=time.monotonic()
-
-        self._start_btn.config(text="⏹   STOP", bg="#cc1a1a", fg=TEXT)
-        self._set_status("RUNNING", active=True)
-        self._clear_log()
-
-        try:
-            os.makedirs(self._out_folder.get(), exist_ok=True)
-        except OSError as e:
-            self.log(f"✗  Cannot create output folder: {e}", "fail")
-            with self._lock: self._running = False
-            self._start_btn.config(text="▶   START", bg=ACC2, fg=BG)
-            return
-
-        n, d, r = self._workers_var.get(), self._dl_conc_var.get(), self._retry_var.get()
-
-        # What is on screen is what runs: push the per-host settings into the
-        # extraction layer before any worker thread starts. Previously each of
-        # these was read once at import time, so the only way to change them was
-        # setx plus a restart.
-        eff = _moon_extract.configure(
-            lanes=self._dn_lanes_var.get(),
-            chrome_path=self._dn_chrome_var.get(),
-            api_key=self._dn_apikey_var.get(),
-            captcha_wait=self._dn_capwait_var.get())
-
-        proxy_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxies.txt")
-        n_proxies  = _PROXY_POOL.load(proxy_path)
-
-        self.log(f"▶  {len(urls)} links  ·  {n} extractors  ·  {d} streams  ·  {r} retries  ·  {VERSION}", "info")
-        self.log(f"   fuckingfast: HTTP diretto"
-                 f"{'' if eff['curl_cffi'] else '  ✗ curl_cffi MANCANTE'}"
-                 f"   ·   datanodes: {eff['lanes']} pages, captcha {eff['captcha_wait']}s"
-                 f"{', API key' if eff['api_key'] else ''}", "dim")
-        self.log(f"   chrome: {eff['chrome']}", "dim")
-        if n_proxies > 0:
-            self.log(f"   proxies: {n_proxies} loaded — rotating per download", "info")
-        self.log(f"   stall < {STALL_MIN_MBS} MB/s  ·  grace {STALL_GRACE_S}s  ·  max {STALL_MAX_KILL} kill", "dim")
-
-        threading.Thread(target=lambda: asyncio.run(self._run(urls,n,d,r)), daemon=True).start()
-
-    # ── Async core (unchanged) ─────────────────────────────────────────────
     async def _do_dl(self, proxy_url, cookies, filename, orig_url, rec,
                      kill_counts, dl_sem, dest_folder, telem, mark_done_fn,
                      failed_urls, q):
         async with dl_sem:
             self._inc("_dls")
             rec.dl_start = time.monotonic(); rec.status = "downloading"
+            self._track(rec)
             dest = os.path.join(dest_folder, filename)
 
             if os.path.exists(dest):
@@ -1078,10 +630,9 @@ class App(tk.Tk):
 
             self._inc("_dls",-1)
 
-    async def _browser_worker(self, browser, wid, q, dl_sem, all_done, mark_done_fn,
+    async def _browser_worker(self, get_browser, wid, q, dl_sem, all_done, mark_done_fn,
                                kill_counts, all_tasks, tasks_lock,
                                output_links, failed_urls, dest_folder, mode, max_retries, telem):
-        self._inc("_browsers")
         my_tasks = []
         try:
             while not self._get("_stop_flag"):
@@ -1100,6 +651,7 @@ class App(tk.Tk):
                 is_retry = attempt > 1
                 suffix   = (" [re-extract]" if is_re else "")+(" [retry]" if is_retry else "")
                 self.log(f"  → {short}{suffix}", "retry" if (is_re or is_retry) else "dim")
+                self._track(rec)
 
                 success = False
                 try:
@@ -1128,7 +680,7 @@ class App(tk.Tk):
                         # Otherwise extract_datanodes() re-validates the shared
                         # Chrome (respawning it if it died) and checks out one
                         # window from the persistent lane pool internally.
-                        proxy_url, cookies = await extract_datanodes(browser, url)
+                        proxy_url, cookies = await extract_datanodes(await get_browser(), url)
                         rec.extract_s = time.monotonic()-t_start
                         if not proxy_url:
                             rec.notes.append("extraction failed")
@@ -1168,7 +720,7 @@ class App(tk.Tk):
             if my_tasks:
                 await asyncio.gather(*my_tasks, return_exceptions=True)
         finally:
-            self._inc("_browsers",-1)
+            pass
 
     async def _run(self, urls, n_workers, max_dl, max_retries):
         t0           = time.monotonic()
@@ -1179,8 +731,8 @@ class App(tk.Tk):
         all_tasks    : list      = []
         tasks_lock   = asyncio.Lock()
         kill_counts  : dict[str,int] = {}
-        dest_folder  = self._out_folder.get()
-        mode         = self._mode.get()
+        dest_folder  = self._cfg["out_folder"]
+        mode         = self._cfg["mode"]
         n_done       = 0
         all_done     = asyncio.Event()
 
@@ -1213,17 +765,35 @@ class App(tk.Tk):
 
         snap_t = asyncio.create_task(snap_task())
 
-        async with async_playwright() as p:
-            async def _launch(wid):
-                b, _shared = await open_browser(p, LAUNCH_ARGS)
-                try:
-                    await self._browser_worker(
-                        b, wid, q, dl_sem, all_done, mark_done,
-                        kill_counts, all_tasks, tasks_lock,
-                        output_links, failed_urls, dest_folder, mode, max_retries, telem)
-                finally:
-                    await close_browser(b, _shared)
+        # fuckingfast is pure HTTP: no browser, no profile, not even the Playwright
+        # driver. The old code opened Chrome per worker BEFORE looking at a single
+        # URL, so a batch of only fuckingfast links still launched it. Now
+        # Playwright starts, and Chrome opens, on the first datanodes link -- and
+        # never at all if there isn't one.
+        stack        = AsyncExitStack()
+        browser_box  : list = []
+        browser_lock = asyncio.Lock()
+
+        async def get_browser():
+            async with browser_lock:
+                if not browser_box:
+                    self.log("   datanodes: starting Chrome...", "dim")
+                    pw = await stack.enter_async_context(async_playwright())
+                    browser_box.append(await open_browser(pw, LAUNCH_ARGS))
+                    self._inc("_browsers")
+                return browser_box[0][0]
+
+        async def _launch(wid):
+            await self._browser_worker(
+                get_browser, wid, q, dl_sem, all_done, mark_done,
+                kill_counts, all_tasks, tasks_lock,
+                output_links, failed_urls, dest_folder, mode, max_retries, telem)
+
+        async with stack:
             await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
+            for browser, shared in browser_box:
+                await close_browser(browser, shared)
+                self._inc("_browsers", -1)
 
         async with tasks_lock:
             stragglers = [t for t in all_tasks if not t.done()]
@@ -1258,30 +828,248 @@ class App(tk.Tk):
         el = time.monotonic()-t0; m, s = divmod(int(el), 60)
         with self._lock: ok, fail, kills = self._ok, self._fail, self._kills
         self.log(f"\n✓  Done in {m}m {s}s  ·  ✓ {ok}  ✗ {fail}  ⚡ {kills} kills", "ok")
-        self.after(0, self._on_done)
+        self._on_done()
 
     def _on_done(self):
-        with self._lock: self._running=False; self._stop_flag=False
-        self._start_btn.config(text="▶   START", bg=ACC2, fg=BG)
-        self._set_status("DONE", active=False)
-        self._stat_cards["speed"].set("—")
-        self._phase_var.set("Done")
-        self._scan_tmp()
+        with self._lock:
+            self._running = False
+            self._stop_flag = False
+            self._state = "done"
 
-    def _scan_tmp(self):
-        folder = self._out_folder.get()
-        if not os.path.isdir(folder): return
-        tmps = [f for f in os.listdir(folder) if f.endswith(".tmp")]
-        if tmps:
-            self.log(f"⚠  {len(tmps)} .tmp files — will resume on next run.", "warn")
+    def scan_tmp(self) -> int:
+        folder = self._cfg["out_folder"]
+        if not os.path.isdir(folder):
+            return 0
+        try:
+            return len([f for f in os.listdir(folder) if f.endswith(".tmp")])
+        except OSError:
+            return 0
 
+    # ══ GUI-facing API ═════════════════════════════════════════════════════
+    _CLAMP = {
+        "workers":    (2, 32),
+        "dl_streams": (2, 48),
+        "retries":    (0, 5),
+        "dn_pages":   (1, 8),
+        "dn_captcha": (30, 600),
+    }
+    _FILE_UI_STATE = {
+        "pending":     "queue",
+        "extracting":  "extract",
+        "downloading": "download",
+        "ok":          "ok",
+        "fail":        "fail",
+    }
+    # The GUI shows active transfers first and keeps a tail of finished ones.
+    # 40 was too short to be honest on a 124-file batch: the badge read "40"
+    # while 124 had gone through. 120 rows cost nothing with content-visibility.
+    _ROWS_KEEP = 120
 
+    def _track(self, rec):
+        """Register a FileRecord so snapshot() can read its live fields."""
+        with self._lock:
+            self._tracked[rec.url] = rec
+
+    def apply_cfg(self, cfg: dict) -> dict:
+        """Validate and store settings. Returns the effective values.
+
+        The GUI is a web page: everything it sends is untrusted input, so ints
+        are coerced and clamped here rather than being fed to the semaphores raw.
+        """
+        cfg = cfg or {}
+        for key, (lo, hi) in self._CLAMP.items():
+            if key in cfg:
+                try:
+                    self._cfg[key] = max(lo, min(hi, int(cfg[key])))
+                except (TypeError, ValueError):
+                    pass
+        if cfg.get("mode") in ("download", "links"):
+            self._cfg["mode"] = cfg["mode"]
+        for key in ("out_folder", "dn_chrome", "dn_apikey"):
+            if isinstance(cfg.get(key), str):
+                self._cfg[key] = cfg[key].strip() if key != "dn_apikey" else cfg[key]
+        return dict(self._cfg)
+
+    def start(self, cfg: dict) -> dict:
+        if self._get("_running"):
+            return {"error": "already running"}
+
+        urls = [u.strip() for u in (cfg or {}).get("links", []) if str(u).strip()]
+        if not urls:
+            return {"error": "no links pasted"}
+        eff = self.apply_cfg(cfg)
+
+        try:
+            os.makedirs(eff["out_folder"], exist_ok=True)
+        except OSError as e:
+            return {"error": f"cannot create folder: {e}"}
+
+        with self._lock:
+            self._running = True; self._stop_flag = False
+            self._state = "running"
+            self._url_total = len(urls); self._url_done = 0
+            self._dl_total = len(urls);  self._dl_done  = 0
+            self._ok = 0; self._fail = 0; self._kills = 0
+            self._browsers = 0; self._dls = 0
+            self._bytes_acc.clear(); self._t0 = time.monotonic()
+            self._tracked.clear()
+        with self._log_lock:
+            self._log_ring.clear(); self._log_total = 0
+
+        # What is on screen is what runs: push the per-host settings into the
+        # extraction layer before any worker thread starts.
+        applied = _moon_extract.configure(
+            lanes=eff["dn_pages"],
+            chrome_path=eff["dn_chrome"],
+            api_key=eff["dn_apikey"],
+            captcha_wait=eff["dn_captcha"])
+
+        proxy_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxies.txt")
+        self._proxies = _PROXY_POOL.load(proxy_path)
+
+        n, d, r = eff["workers"], eff["dl_streams"], eff["retries"]
+        self.log(f"▶  {len(urls)} links  ·  {n} extractors  ·  {d} streams  ·  {r} retries  ·  {VERSION}", "info")
+        self.log(f"   fuckingfast: direct HTTP"
+                 f"{'' if applied['curl_cffi'] else '  ✗ curl_cffi MISSING'}"
+                 f"   ·   datanodes: {applied['lanes']} pages, captcha {applied['captcha_wait']}s"
+                 f"{', API key' if applied['api_key'] else ''}", "dim")
+        self.log(f"   chrome: {applied['chrome']}", "dim")
+        if self._proxies:
+            self.log(f"   proxies: {self._proxies} loaded — rotating per download", "info")
+        self.log(f"   stall < {STALL_MIN_MBS} MB/s  ·  grace {STALL_GRACE_S}s  ·  max {STALL_MAX_KILL} kill", "dim")
+
+        self._thread = threading.Thread(
+            target=lambda: self._guarded_run(urls, n, d, r), daemon=True)
+        self._thread.start()
+        return {"ok": True, "proxies": self._proxies, "effective": applied}
+
+    def _guarded_run(self, urls, n, d, r):
+        """asyncio.run in a thread: an escaping exception would vanish silently."""
+        try:
+            asyncio.run(self._run(urls, n, d, r))
+        except Exception:
+            self.log(f"✗  engine crash: {traceback.format_exc(limit=3)}", "fail")
+            self._on_done()
+
+    def stop(self) -> dict:
+        if not self._get("_running"):
+            return {"ok": True}
+        with self._lock:
+            self._stop_flag = True
+            self._state = "stopping"
+        self.log("⏹  stop requested — finishing the downloads in flight...", "warn")
+        return {"ok": True}
+
+    def _files_payload(self) -> list[dict]:
+        with self._lock:
+            tracked = list(self._tracked.items())
+
+        # Retire the oldest finished entries once the list is long. Active
+        # transfers are never dropped, so a 400-file batch stays bounded.
+        excess = len(tracked) - self._ROWS_KEEP
+        if excess > 0:
+            with self._lock:
+                for url, rec in tracked:
+                    if excess <= 0:
+                        break
+                    if rec.status in ("ok", "fail"):
+                        self._tracked.pop(url, None)
+                        excess -= 1
+                tracked = list(self._tracked.items())
+
+        out = []
+        for url, rec in tracked:
+            state = self._FILE_UI_STATE.get(rec.status, "queue")
+            if rec.stall_kills and rec.status in ("pending", "extracting"):
+                state = "kill"
+            if rec.status == "downloading" and rec.file_bytes > 0:
+                pct = min(1.0, rec.done_bytes / rec.file_bytes)
+            elif rec.status == "ok":
+                pct = 1.0
+            else:
+                pct = None
+            if rec.status == "downloading":
+                mbs = rec.live_mbs
+            elif rec.status == "ok":
+                mbs = rec.avg_mbs
+            else:
+                mbs = 0.0
+            out.append({"key": url, "name": rec.filename, "state": state,
+                        "mbs": round(mbs, 3), "pct": pct})
+        return out
+
+    def snapshot(self, cursor: int = 0) -> dict:
+        with self._lock:
+            state    = self._state
+            running  = self._running
+            t0       = self._t0
+            url_done = self._url_done; url_tot = self._url_total
+            dl_done  = self._dl_done;  dl_tot  = self._dl_total
+            ok       = self._ok; fail = self._fail
+            kills    = self._kills; dls = self._dls
+            snap     = list(self._bytes_acc)
+
+        now = time.monotonic()
+        recent = [(t, b) for t, b in snap if t > now - 3.0]
+        if len(recent) > 1:
+            span = max(now - recent[0][0], 0.05)
+            mbs = sum(b for _, b in recent) / span / 1_048_576
+        else:
+            mbs = 0.0
+
+        total_downloaded = sum(b for _, b in snap)
+        files_remaining  = dl_tot - dl_done
+        if mbs > 0.1 and files_remaining > 0 and dl_done > 0:
+            avg_file = total_downloaded / dl_done
+            eta = min(files_remaining * avg_file / (mbs * 1_048_576), 7200)
+        else:
+            eta = 0.0
+
+        el = (now - t0) if t0 else 0.0
+        # No phase sentence here on purpose: the GUI owns wording and language,
+        # so the engine ships numbers and a stage name instead of prose.
+        if not running and state == "idle":
+            stage = "idle"
+        elif url_done < url_tot:
+            stage = "extracting"
+        elif dl_done < dl_tot:
+            stage = "downloading"
+        else:
+            stage = "done"
+
+        with self._log_lock:
+            dropped = self._log_total - len(self._log_ring)
+            begin = max(0, min(len(self._log_ring), cursor - dropped))
+            lines = [list(pair) for pair in list(self._log_ring)[begin:]]
+            new_cursor = self._log_total
+
+        return {
+            "state": state,
+            "metrics": {
+                "speed_mbs": round(mbs, 3),
+                "dl_done": dl_done, "dl_total": dl_tot,
+                "ok": ok, "fail": fail, "kills": kills,
+                "eta_s": round(eta, 1),
+                "bytes_total": total_downloaded,
+                "extract_done": url_done, "extract_total": url_tot,
+                "active": dls, "stage": stage, "elapsed_s": round(el, 1),
+            },
+            "files": self._files_payload(),
+            "log": lines,
+            "cursor": new_cursor,
+            "proxies": self._proxies,
+            "tmp": self.scan_tmp() if not running else None,
+        }
+
+    def clear_files(self) -> dict:
+        with self._lock:
+            for url in [u for u, r in self._tracked.items() if r.status in ("ok", "fail")]:
+                self._tracked.pop(url, None)
+        return {"ok": True}
+
+# ── entry point ─────────────────────────────────────────────────────────────
+# There is no GUI in here. Start the app with:  python moon_bridge.py
 if __name__ == "__main__":
-    try:
-        app = App()
-        app.after(600, app._scan_tmp)
-        app.mainloop()
-    except Exception:
-        crash = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crash_log.txt")
-        with open(crash,"w",encoding="utf-8") as f: f.write(traceback.format_exc())
-        raise
+    engine = Engine()
+    print(json.dumps(engine.snapshot(0)["metrics"], indent=2))
+    print(f"{VERSION}  ·  headless engine ok  ·  avvia la GUI con: python moon_bridge.py")
