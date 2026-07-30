@@ -1,9 +1,6 @@
 """
 MoonDownloader v16 -- headless engine
 ════════════════════════════════════════
-GENERATED FILE. Do not edit by hand: run `python build_engine.py` against a
-pristine moon_tk.py and this file is rebuilt.
-
 The download engine with no GUI attached. State leaves through
 Engine.snapshot(), commands come in through Engine.start()/stop(), and both are
 plain JSON-able dicts -- moon_bridge.py hands them straight to the WebView.
@@ -333,8 +330,8 @@ class Telemetry:
 
 # ── EXTRACTION ────────────────────────────────────────────────────────────────
 # Both host front-ends changed in 2026; the extraction layer now lives in
-# moon_extract.py so moon_tk.py and moon_cli.py share one implementation.
-import sys                                       # noqa: E402  (moon_tk.py has no top-level `import sys`)
+# moon_extract.py so the engine and the CLI share one implementation.
+import sys                                       # noqa: E402  (no top-level `import sys` above)
 from moon_extract import (                       # noqa: E402
     extract_fuckingfast,
     extract_datanodes,
