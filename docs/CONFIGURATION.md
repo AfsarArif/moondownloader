@@ -47,7 +47,7 @@ Environment variables still work as defaults.
 The start banner reports what is in use per host:
 
 ```
-▶  85 links  ·  16 extractors  ·  8 streams  ·  3 retries  ·  v16.0
+▶  85 links  ·  16 extractors  ·  8 streams  ·  3 retries  ·  v2.0
    fuckingfast: direct HTTP   ·   datanodes: 8 pages, captcha 30s
    chrome: C:\Program Files\Google\Chrome\Application\chrome.exe
 ```

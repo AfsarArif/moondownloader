@@ -2,7 +2,7 @@
 
 # 🌙 Moon Downloader
 
-### **v16.0**
+### **V2**
 
 **Bulk file downloader** — real-Chrome extraction for datanodes.to, pure-HTTP extraction for fuckingfast.co, aiohttp streaming, and a GUI that runs on Edge WebView2.
 
@@ -27,7 +27,7 @@ Built with Python · Playwright · aiohttp · curl_cffi
 
 ---
 
-## 📸 The v16 interface
+## 📸 The interface
 
 <div align="center">
 
@@ -53,7 +53,7 @@ and **not one browser window**, because no datanodes link was in the batch.</sub
 
 ---
 
-## ⚡ What v16 is
+## ⚡ What V2 is
 
 The two providers stopped having anything in common, so the app stopped pretending they did.
 
@@ -174,7 +174,7 @@ Full write-up: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 | [Quick start](docs/QUICKSTART.md) | install, first run, what each setting does |
 | [Configuration](docs/CONFIGURATION.md) | every setting, every environment variable, the Chrome profile |
 | [Providers](docs/PROVIDERS.md) | how each host is extracted, and how to add another |
-| [Architecture](docs/ARCHITECTURE.md) | how v16 is built, feature by feature |
+| [Architecture](docs/ARCHITECTURE.md) | how V2 is built, feature by feature |
 | [Engineering notes](docs/ENGINEERING_NOTES.md) | the measurements behind the design decisions |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | 403s, Turnstile failures, CDP conflicts, stalls |
 | [FAQ](docs/FAQ.md) | why curl_cffi is mandatory, what `--browsers` means |

@@ -5,9 +5,13 @@ All notable changes to Moon Downloader will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **Versioning.** The public releases are **V1** (tag `v14.1`) and **V2** (tag `v2.0`).
+> V2 is where the numbering resets: the 14.x and 15.0 entries below keep the numbers they
+> shipped with, and `v14.1` keeps its tag so its download link never breaks.
+
 ## [Unreleased]
 
-## [16.0]
+## [2.0] — V2
 
 The GUI moved off tkinter. Both extraction methods were rebuilt in the 14.2–14.8 line
 and no longer share a mechanism, so the interface stopped pretending they do.
@@ -99,7 +103,7 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   byte-identical
 - Generated brand assets (`assets/mark.png`, `assets/backdrop.png`) with `prep_assets.py`
 
-### Known limits (the reason v16 exists)
+### Known limits (the reason V2 exists)
 - Tk's canvas has no anti-aliasing and no alpha channel: arcs, rounded corners and glows
   render as steps and bands
 - Absolute type and geometry: on a large monitor the interface stays small and the layout
@@ -144,7 +148,7 @@ and no longer share a mechanism, so the interface stopped pretending they do.
 ### Changed
 - `curl_cffi` is now a hard requirement for fuckingfast.co
 
-## [14.1]
+## [14.1] — V1
 
 ### Added
 - Stall detection with automatic lane kills for genuinely slow downloads

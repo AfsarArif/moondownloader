@@ -10,7 +10,7 @@ the usual macOS and Linux locations.
 
 ## What happened to the tkinter GUI?
 
-Removed in v16.0. It was a second interface to maintain for the same engine, and it was
+Removed in V2. It was a second interface to maintain for the same engine, and it was
 also the file `moon_engine.py` used to be generated from — which made the legacy GUI the
 source of truth for the modern engine. The generator went with it; `moon_engine.py` is a
 normal module you can edit.
@@ -38,7 +38,7 @@ links.
 
 ## Does Chrome open for fuckingfast links too?
 
-No, since v16. `moon_extract.BrowserGate` launches on the first datanodes link and never
+No, since V2. `moon_extract.BrowserGate` launches on the first datanodes link and never
 before — not even the Playwright driver's node process. `python test_no_chrome.py` asserts
 it for the engine and the CLI, and checks both sources.
 

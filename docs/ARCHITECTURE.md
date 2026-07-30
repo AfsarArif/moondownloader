@@ -1,6 +1,6 @@
 # Architecture
 
-How v16 is put together, and why each piece is the way it is.
+How V2 is put together, and why each piece is the way it is.
 
 ---
 
@@ -12,12 +12,12 @@ blended against a known background. Its type and geometry were absolute too: on 
 2560×1440 screen the text measured about **8 px of ink** and roughly a third of the
 window stayed empty.
 
-v16 renders the interface in **Edge WebView2** — the same Chromium that already ships
+V2 renders the interface in **Edge WebView2** — the same Chromium that already ships
 with Windows 10/11. GPU compositing: gradients, blur, shadows, transitions, subpixel
 anti-aliasing. Type scales with the window: `clamp()` moves the base from 16 px at
 1280 wide up to 19 px on a large monitor instead of staying nailed down.
 
-The tkinter app was removed in v16.0: it was a second interface to maintain, and it was
+The tkinter app was removed in V2: it was a second interface to maintain, and it was
 also the file the engine used to be generated from, which made the legacy GUI the source
 of truth for the modern engine. `moon_engine.py` is that engine, standing on its own.
 
