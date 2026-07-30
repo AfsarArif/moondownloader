@@ -23,7 +23,7 @@ lazy browser launch described below.
 ## Startup
 
 ```
-avvia.bat
+start.bat
 ```
 
 It no longer installs pywebview. It opens a server on `127.0.0.1` (port chosen by the
@@ -51,7 +51,7 @@ python moon_bridge.py --browser      # default browser
 python moon_bridge.py --serve        # server only, prints the URL
 ```
 
-The old Tk GUI still runs: `avvia_tk.bat` → `gen_1.py`.
+The old Tk GUI still runs: `start_tk.bat` → `moon_tk.py`.
 
 Just want to look at the interface, without Python? Open `web/index.html` in Chrome or
 Edge — it boots in **demo mode** against a synthetic engine (a `DEMO` chip appears bottom
@@ -114,21 +114,20 @@ every number to its limits (`workers` 2–32, `dl_streams` 2–48, `retries` 0�
 |:--|:--|
 | `moon_bridge.py` | window host, OS dialogs, `settings.json` |
 | `moon_engine.py` | **generated** — the engine with no GUI + the JSON API |
-| `apply_web_v16.py` | the generator: reads a pristine `gen_1.py`, writes `moon_engine.py` |
+| `build_engine.py` | the generator: reads a pristine `moon_tk.py`, writes `moon_engine.py` |
 | `moon_extract.py` | extraction for both providers + the Chrome lifecycle + `BrowserGate` |
 | `web/index.html` | structure |
 | `web/styles.css` | everything visual |
 | `web/app.js` | rendering, the bridge, and a synthetic engine for the preview |
 | `web/assets/` | `mark.png`, `backdrop.png`, `window.png` |
-| `gen_1.py` | the Tk GUI, and the source the engine is generated from |
-| `gen_cli.py` | the headless CLI |
+| `moon_tk.py` | the Tk GUI, and the source the engine is generated from |
+| `moon_cli.py` | the headless CLI |
 | `test_no_chrome.py` | asserts fuckingfast opens no browser |
-| `prep_assets.py` | regenerates the assets from raw renders |
-| `shots.py` | verification renders in headless Chromium |
+| `render_gui.py` | verification renders in headless Chromium |
 | `integration_http.py` | end-to-end: browser ↔ loopback HTTP ↔ Engine |
 | `integration_web.py` | end-to-end: pywebview ↔ Engine |
 
-`apply_web_v16.py` **reads** `gen_1.py`, it never writes it: the Tk app keeps working.
+`build_engine.py` **reads** `moon_tk.py`, it never writes it: the Tk app keeps working.
 `moon_engine.py` is generated — do not hand-edit it, regenerate it.
 
 ---
@@ -149,7 +148,7 @@ The decision now lives in one place, `moon_extract.BrowserGate`:
   `cf_clearance` profile needs anyway)
 - `aclose()` tears down in the right order: Chrome first, then the driver
 
-This holds for all three front-ends: the WebView GUI, the Tk GUI (`avvia_tk.bat`) and the
+This holds for all three front-ends: the WebView GUI, the Tk GUI (`start_tk.bat`) and the
 CLI.
 
 ```bash
@@ -247,11 +246,11 @@ builds the sentence. Switching language relabels what is already on screen, rows
 
 ```bash
 python test_no_chrome.py       # no browser for fuckingfast, exactly one for datanodes
-python integration_http.py     # browser → loopback HTTP → Engine (the path avvia.bat takes)
+python integration_http.py     # browser → loopback HTTP → Engine (the path start.bat takes)
 python integration_web.py      # pywebview bridge → Engine (the --pywebview path)
-python shots.py out/           # renders at 2554x1400 and 1440x900 + an overflow audit
+python render_gui.py out/           # renders at 2554x1400 and 1440x900 + an overflow audit
 python moon_engine.py          # headless engine: prints a snapshot and exits
-python apply_web_v16.py        # regenerate the engine; git diff must stay empty
+python build_engine.py        # regenerate the engine; git diff must stay empty
 ```
 
 `integration_http.py` is the one that matters: it starts the real server, opens the real

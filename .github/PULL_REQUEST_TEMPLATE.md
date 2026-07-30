@@ -15,7 +15,7 @@
 
 - [ ] I have tested my changes locally
 - [ ] If this affects shared logic (extraction, download engine), I also
-      applied the equivalent change to `gen_cli.py`
+      applied the equivalent change to `moon_cli.py`
 - [ ] I have kept the single-file architecture (no package split)
 - [ ] I have not added new dependencies without justification in the PR
       description

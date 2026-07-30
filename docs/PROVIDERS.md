@@ -13,7 +13,7 @@ for them and why one of them never opens a browser.
 | Settings that apply | `Pages`, `Captcha wait`, Chrome path, API key | none |
 
 Both extractors live in `moon_extract.py` and are shared by the WebView GUI
-(`moon_engine.py`), the Tk GUI (`gen_1.py`) and the CLI (`gen_cli.py`).
+(`moon_engine.py`), the Tk GUI (`moon_tk.py`) and the CLI (`moon_cli.py`).
 
 ---
 
@@ -78,10 +78,10 @@ one shared instance, however many extractors are running.
 1. **Extractor** — write it in `moon_extract.py`, next to the two that exist. Pure
    HTTP if the site allows it; a browser only if it genuinely requires one.
 2. **Dispatch** — add the domain to the `urlparse(url).netloc` branch in
-   `gen_1.py` and `gen_cli.py` (grep `datanodes.to` — there are two call sites).
+   `moon_tk.py` and `moon_cli.py` (grep `datanodes.to` — there are two call sites).
    Ask `BrowserGate.get()` for a browser **inside** the branch, never before it, or
    you reintroduce the launch-for-nothing bug.
-3. **Regenerate** — `python apply_web_v16.py` rebuilds `moon_engine.py` from
-   `gen_1.py`. Never hand-edit `moon_engine.py`.
+3. **Regenerate** — `python build_engine.py` rebuilds `moon_engine.py` from
+   `moon_tk.py`. Never hand-edit `moon_engine.py`.
 4. **Test** — 10+ links including one guaranteed-dead one, so dead-link detection is
    exercised, plus `python test_no_chrome.py`.

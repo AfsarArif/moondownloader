@@ -19,7 +19,7 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   (a window with no tabs and no address bar), OS file dialogs, atomic `settings.json`
 - `moon_engine.py` — the download engine with no GUI attached: `start()` / `stop()` /
   `snapshot(cursor)` / `scan_tmp()`, all JSON-able
-- `apply_web_v16.py` — generator that produces `moon_engine.py` from a pristine `gen_1.py`,
+- `build_engine.py` — generator that produces `moon_engine.py` from a pristine `moon_tk.py`,
   so there is one source of truth for the engine
 - **Live transfer rows** — progress ring, state, percentage and instantaneous speed per file,
   fed by live `FileRecord`s (`done_bytes` / `live_mbs`, published ~4 Hz on their own window,
@@ -28,10 +28,10 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   the page writes the sentence
 - Fluid type scale (`clamp()`): the interface scales with the window instead of staying at an
   8 px ink height on a 2560×1440 screen
-- `test_no_chrome.py`, `integration_http.py`, `integration_web.py`, `shots.py` — the verification suite.
+- `test_no_chrome.py`, `integration_http.py`, `integration_web.py`, `render_gui.py` — the verification suite.
   `test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no
   browser, no display and no Playwright install, and covers the engine, the CLI and (statically)
-  `gen_1.py`
+  `moon_tk.py`
 - `moon_extract.BrowserGate` — the deferred launch: `get()` opens Playwright and Chrome on first
   demand, collapses concurrent first calls onto one instance, and tears both down in order
 - Byte-based ETA, host split of the pasted links, per-host colouring in the link editor,
@@ -44,12 +44,15 @@ and no longer share a mechanism, so the interface stopped pretending they do.
 - Settings and pasted links persist across restarts in `settings.json`
 - Every value the GUI sends is coerced and clamped in `Engine.apply_cfg()` before it reaches
   a semaphore
-- `gen_1.py` (the tkinter GUI) still runs unchanged from `avvia_tk.bat`; the only edit it took is
+- `moon_tk.py` (the tkinter GUI) still runs unchanged from `start_tk.bat`; the only edit it took is
   the lazy launch, so the two GUIs and the CLI cannot drift apart on it
-- `gen_cli.py --browsers` is documented as what it always was: parallel extraction workers, not
+- `moon_cli.py --browsers` is documented as what it always was: parallel extraction workers, not
   one browser each
 - CI byte-compiles every module, runs `test_no_chrome.py`, and regenerates `moon_engine.py` from
-  `gen_1.py` to prove the two have not drifted
+  `moon_tk.py` to prove the two have not drifted
+- **Files renamed** so every name is English and says what it is:
+  `avvia.bat` → `start.bat`, `avvia_tk.bat` → `start_tk.bat`, `gen_1.py` → `moon_tk.py`,
+  `gen_cli.py` → `moon_cli.py`, `apply_web_v16.py` → `build_engine.py`
 - **The repository is English throughout** — launcher output, engine warnings, Tk labels, OS dialog
   titles, module docstrings and test assertions. The GUI's runtime EN/IT switch is unaffected
 - Documentation restructured: the two Italian guides became
@@ -73,6 +76,14 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   so `setAttribute("stroke-dasharray")` lost to the stylesheet
 - Loopback API replied 403 without draining the request body, so the next keep-alive request on
   that connection was parsed as garbage and answered 501
+
+### Removed
+- `apply_patch.py` — the v14.1 → v14.8 migration patcher. Against the current tree it
+  half-applies instead of failing: in testing it silently reverted `moon_cli.py`'s imports
+  to the pre-`BrowserGate` API
+- `prep_assets.py` — one-shot asset builder whose inputs (the raw renders) were never in
+  the repo; the assets it produced are committed
+- Three orphan v14 screenshots in the repo root that nothing linked
 
 ## [15.0]
 

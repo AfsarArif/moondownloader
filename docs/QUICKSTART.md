@@ -5,7 +5,7 @@ Extended version of the README quick start, for a first run.
 ## Requirements
 
 - **OS:** Windows 10 or 11 (primary). The GUI needs Edge or Chrome — both ship with
-  Windows. macOS/Linux run the engine and the CLI fine, `avvia.bat` is Windows-only.
+  Windows. macOS/Linux run the engine and the CLI fine, `start.bat` is Windows-only.
 - **Python:** 3.10 or newer
 - **Disk:** ~150 MB for the Playwright Chromium — only ever used as the datanodes
   fallback when no real Chrome is found. fuckingfast needs none of it.
@@ -16,10 +16,10 @@ Extended version of the README quick start, for a first run.
 1. Install [Python 3.10+](https://www.python.org/downloads/) with **"Add Python to
    PATH"** ticked.
 2. Download or clone this repo.
-3. Double-click **`avvia.bat`**.
+3. Double-click **`start.bat`**.
 
 First run installs `aiohttp`, `playwright`, `curl_cffi` and `pillow`, then the
-Chromium build. `avvia.bat` then starts a loopback HTTP server and opens the GUI in
+Chromium build. `start.bat` then starts a loopback HTTP server and opens the GUI in
 Edge (or Chrome) with `--app`: a window with no tabs and no address bar. There is no
 native GUI dependency.
 
@@ -39,16 +39,16 @@ python moon_bridge.py --serve        # server only, prints the URL
 ## Option 3 — CLI (headless)
 
 ```bash
-python gen_cli.py --urls links.txt --output ./downloads --browsers 16 --streams 48
+python moon_cli.py --urls links.txt --output ./downloads --browsers 16 --streams 48
 ```
 
 `--browsers` is the number of parallel extraction **workers**, not browsers: Chrome
-opens once and only if a datanodes link shows up. `python gen_cli.py --help` for the
+opens once and only if a datanodes link shows up. `python moon_cli.py --help` for the
 rest.
 
 ## Option 4 — the old Tk GUI
 
-`avvia_tk.bat` → `gen_1.py`. Same engine, tkinter interface.
+`start_tk.bat` → `moon_tk.py`. Same engine, tkinter interface.
 
 ## Just want to look at the interface?
 

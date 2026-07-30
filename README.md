@@ -63,7 +63,7 @@ A batch that contains one datanodes link opens exactly one shared Chrome, on dem
 extractors are running.
 
 One `BrowserGate` in `moon_extract.py` owns that decision, so the WebView GUI, the Tk GUI
-(`avvia_tk.bat`) and the CLI all behave the same way — `test_no_chrome.py` asserts it for each of them.
+(`start_tk.bat`) and the CLI all behave the same way — `test_no_chrome.py` asserts it for each of them.
 
 ---
 
@@ -72,10 +72,10 @@ One `BrowserGate` in `moon_extract.py` owns that decision, so the WebView GUI, t
 ### One-click (Windows)
 
 1. Install **[Python 3.10+](https://www.python.org/downloads/)** — check ✅ *"Add Python to PATH"*
-2. Double-click **`avvia.bat`**
+2. Double-click **`start.bat`**
 3. Done. The first run installs the dependencies and Chromium.
 
-`avvia.bat` starts a loopback HTTP server and opens the GUI in **Edge** (or Chrome) with `--app`:
+`start.bat` starts a loopback HTTP server and opens the GUI in **Edge** (or Chrome) with `--app`:
 a window with no tabs and no address bar. No native GUI dependency, nothing to guess.
 
 ### Manual
@@ -85,12 +85,12 @@ pip install -r requirements.txt
 playwright install chromium
 python moon_bridge.py            # GUI
 python moon_bridge.py --serve    # server only, prints the URL
-python gen_cli.py <url> ... -o <folder>   # headless CLI
+python moon_cli.py <url> ... -o <folder>   # headless CLI
 ```
 
 ### Still want the old Tk GUI?
 
-`avvia_tk.bat` → runs `gen_1.py`, untouched.
+`start_tk.bat` → runs `moon_tk.py`, untouched.
 
 ### Just want to look at the interface?
 
@@ -133,21 +133,21 @@ Environment variables, the dedicated Chrome profile and the API-key limits are i
 ## 🏗️ Architecture
 
 ```
-avvia.bat
+start.bat
    └── moon_bridge.py          loopback HTTP + token, launches Edge --app, OS dialogs
          ├── web/              index.html · styles.css · app.js   (the GUI)
          └── moon_engine.py    headless engine: start/stop/snapshot
                └── moon_extract.py   datanodes (Chrome+CDP) · fuckingfast (curl_cffi)
                                      BrowserGate: the launch, deferred
 
-gen_1.py        the tkinter GUI, still runnable (avvia_tk.bat)
-gen_cli.py      headless CLI
-apply_web_v16.py   regenerates moon_engine.py from a pristine gen_1.py
+moon_tk.py        the tkinter GUI, still runnable (start_tk.bat)
+moon_cli.py      headless CLI
+build_engine.py   regenerates moon_engine.py from a pristine moon_tk.py
 ```
 
 All three front-ends import the same `moon_extract`, so extraction, the Chrome lifecycle and the launch
-decision exist once. `moon_engine.py` is generated, never hand-edited: change `gen_1.py`, then run
-`python apply_web_v16.py`.
+decision exist once. `moon_engine.py` is generated, never hand-edited: change `moon_tk.py`, then run
+`python build_engine.py`.
 
 **Pull model.** The page asks for `snapshot(cursor)` ~12 times per second instead of Python pushing at
 it: every DOM write stays on the page's own timeline and a late snapshot is a dropped frame, not a stall.
@@ -214,11 +214,11 @@ Place next to the scripts:
 
 ```bash
 python test_no_chrome.py       # engine + CLI: no browser for fuckingfast, exactly one for datanodes
-python integration_http.py     # browser → loopback HTTP → engine (the path avvia.bat takes)
+python integration_http.py     # browser → loopback HTTP → engine (the path start.bat takes)
 python integration_web.py      # pywebview path
-python shots.py out/           # renders at 2554x1400 and 1440x900 + overflow audit
+python render_gui.py out/           # renders at 2554x1400 and 1440x900 + overflow audit
 python moon_engine.py          # headless engine: prints a snapshot and exits
-python apply_web_v16.py        # regenerate moon_engine.py; a clean run means gen_1.py still matches
+python build_engine.py        # regenerate moon_engine.py; a clean run means moon_tk.py still matches
 ```
 
 `test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no browser,

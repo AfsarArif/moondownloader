@@ -22,9 +22,9 @@ moon_bridge.py     loopback HTTP + token, launches Edge/Chrome --app, OS dialogs
     moon_extract.py  datanodes (real Chrome over CDP) · fuckingfast (curl_cffi)
                      BrowserGate: the launch, deferred until a datanodes link
 
-gen_1.py           tkinter GUI + engine in one file            (the source of truth)
-gen_cli.py         argparse CLI
-apply_web_v16.py   regenerates moon_engine.py from gen_1.py
+moon_tk.py           tkinter GUI + engine in one file            (the source of truth)
+moon_cli.py         argparse CLI
+build_engine.py   regenerates moon_engine.py from moon_tk.py
 ```
 
 Layers inside the engine:
@@ -32,19 +32,19 @@ Layers inside the engine:
 - **Extraction** — `moon_extract.py`, shared by all three front-ends
 - **Download engine** — aiohttp, Range-header resume, stall detection, proxy rotation
 - **Telemetry** — 1 Hz snapshots, `.txt` + `.json` output
-- **GUI** — either `web/` over the loopback API (v16) or tkinter (`gen_1.py`)
+- **GUI** — either `web/` over the loopback API (v16) or tkinter (`moon_tk.py`)
 
 ## Rules that are not style preferences
 
-- **`moon_engine.py` is generated. Never hand-edit it.** Change `gen_1.py`, then run
-  `python apply_web_v16.py`. CI regenerates it and fails if your commit disagrees.
+- **`moon_engine.py` is generated. Never hand-edit it.** Change `moon_tk.py`, then run
+  `python build_engine.py`. CI regenerates it and fails if your commit disagrees.
 - **Shared logic goes in `moon_extract.py`**, not copy-pasted between front-ends. If a
   change touches extraction, the Chrome lifecycle or the download engine, it must land
-  in one place and be visible from `gen_1.py`, `gen_cli.py` and `moon_engine.py`.
+  in one place and be visible from `moon_tk.py`, `moon_cli.py` and `moon_engine.py`.
 - **Never open a browser before you know you need one.** Ask `BrowserGate.get()` inside
   the provider branch that requires it. A launch at the top of a run is the bug
   `test_no_chrome.py` exists to prevent.
-- **Any change to `gen_1.py`'s shared logic must be mirrored in `gen_cli.py`.**
+- **Any change to `moon_tk.py`'s shared logic must be mirrored in `moon_cli.py`.**
 - **No new dependencies without a strong reason.** The stack is deliberately small:
   `aiohttp`, `playwright`, `curl_cffi`, with `pillow` optional.
 - **English only.** Code, comments, log lines, dialog titles and docs. The GUI's EN/IT
@@ -54,10 +54,10 @@ Layers inside the engine:
 
 ```bash
 python test_no_chrome.py       # no browser for fuckingfast, exactly one for datanodes
-python apply_web_v16.py        # regenerate the engine; git diff must be empty
+python build_engine.py        # regenerate the engine; git diff must be empty
 python integration_http.py     # browser -> loopback HTTP -> engine
 python integration_web.py      # pywebview path
-python shots.py out/           # GUI renders + overflow audit
+python render_gui.py out/           # GUI renders + overflow audit
 ```
 
 `test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-## `avvia.bat` says "Python not found"
+## `start.bat` says "Python not found"
 
 Python is missing, or not on `PATH`.
 
@@ -10,7 +10,7 @@ Python is missing, or not on `PATH`.
 
 ## The GUI window never appears
 
-`avvia.bat` launches Edge (or Chrome) with `--app` against a loopback server. Run
+`start.bat` launches Edge (or Chrome) with `--app` against a loopback server. Run
 `python moon_bridge.py --serve`, open the printed URL in any Chromium browser, and
 read the console: a missing dependency or a refused port shows up there.
 
@@ -49,7 +49,7 @@ Fixed in v16. `moon_extract.BrowserGate` launches on the first datanodes link an
 before, in the WebView GUI, the Tk GUI and the CLI alike.
 
 If you still see it, you are running pre-v16 files: check that `moon_extract.py`
-contains `class BrowserGate` and that `gen_1.py` / `gen_cli.py` / `moon_engine.py`
+contains `class BrowserGate` and that `moon_tk.py` / `moon_cli.py` / `moon_engine.py`
 contain no bare `open_browser(` call. `python test_no_chrome.py` answers this in a
 second.
 

@@ -71,7 +71,7 @@ All optional. The GUI overrides them at run time; the CLI reads them directly.
 | `MOON_DEBUG` | *(off)* | `1` = trace every gate of the extraction |
 
 `setx` only affects **new** processes: after setting a variable you have to close and
-reopen the prompt (or relaunch `avvia.bat` from a fresh one), otherwise nothing appears to
+reopen the prompt (or relaunch `start.bat` from a fresh one), otherwise nothing appears to
 change.
 
 > `MOON_DN_LANES` does **not** open more windows. It bounds how many heavy pages
