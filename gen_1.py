@@ -1,5 +1,5 @@
 """
-MoonDownloader  v14.1
+MoonDownloader  v16.0
 ━━━━━━━━━━━━━━━━━━━━
 Single-file GUI application for bulk downloading from datanodes.to
 and fuckingfast.co. Uses Playwright for URL extraction and aiohttp
@@ -39,7 +39,7 @@ TEXT3   = "#3d506e"
 OK      = "#00e676"
 ERR     = "#ff4d6d"
 WARN    = "#ffb547"
-VERSION = "v14.8"
+VERSION = "v16.0"
 
 # ── TUNING ─────────────────────────────────────────────────────────────────────
 DEFAULT_DL_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads", "datanodes")
@@ -699,24 +699,24 @@ class App(tk.Tk):
         _slider(common, "Extractors", self._workers_var, 2, 32, "rec. 16")
         _slider(common, "DL streams", self._dl_conc_var, 2, 48, "rec. 8")
         _slider(common, "Retries",    self._retry_var,   0, 5,  "")
-        tk.Label(common, text="pochi stream = piu banda per file; la pipe e il tetto",
+        tk.Label(common, text="fewer streams = more bandwidth per file; the pipe is the ceiling",
                  font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x", pady=(3,0))
 
-        ff = _panel("FUCKINGFAST  \u00b7  HTTP, NIENTE BROWSER")
-        tk.Label(ff, text=("\u2713  curl_cffi attivo \u2014 hx-redirect, ~0.25s per link"
+        ff = _panel("FUCKINGFAST  \u00b7  HTTP, NO BROWSER")
+        tk.Label(ff, text=("\u2713  curl_cffi active \u2014 hx-redirect, ~0.25s per link"
                            if HAVE_CURL_CFFI else
-                           "\u2717  curl_cffi MANCANTE \u2014 pip install curl_cffi"),
+                           "\u2717  curl_cffi MISSING \u2014 pip install curl_cffi"),
                  font=("Courier",7), fg=(ACC2 if HAVE_CURL_CFFI else "#ff5555"),
                  bg=BG3, anchor="w").pack(fill="x")
-        tk.Label(ff, text="niente da regolare: non apre Chrome, non ha captcha",
+        tk.Label(ff, text="nothing to tune: opens no browser, has no captcha",
                  font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x")
 
         dn = _panel("DATANODES  \u00b7  CHROME + TURNSTILE")
         _slider(dn, "Pages", self._dn_lanes_var, 1, 8, "rec. 3")
-        _slider(dn, "Captcha s", self._dn_capwait_var, 30, 600, "attesa manuale")
+        _slider(dn, "Captcha s", self._dn_capwait_var, 30, 600, "manual wait")
         _entry(dn, "Chrome", self._dn_chrome_var, browse=self._pick_chrome)
         _entry(dn, "API key", self._dn_apikey_var, show="\u2022")
-        tk.Label(dn, text="pagine = tab sulla stessa finestra/identita (non finestre separate)",
+        tk.Label(dn, text="pages = tabs on one window/identity, not separate windows",
                  font=("Courier",7), fg=TEXT3, bg=BG3, anchor="w").pack(fill="x", pady=(3,0))
 
         # START button
@@ -960,8 +960,8 @@ class App(tk.Tk):
 
     def _pick_chrome(self):
         f = filedialog.askopenfilename(
-            title="Seleziona chrome.exe / msedge.exe",
-            filetypes=[("Chrome / Edge", "chrome.exe msedge.exe"), ("Tutti", "*.*")])
+            title="Select chrome.exe / msedge.exe",
+            filetypes=[("Chrome / Edge", "chrome.exe msedge.exe"), ("All files", "*.*")])
         if f: self._dn_chrome_var.set(f)
 
     def _clear_log(self):
@@ -1019,8 +1019,8 @@ class App(tk.Tk):
         n_proxies  = _PROXY_POOL.load(proxy_path)
 
         self.log(f"▶  {len(urls)} links  ·  {n} extractors  ·  {d} streams  ·  {r} retries  ·  {VERSION}", "info")
-        self.log(f"   fuckingfast: HTTP diretto"
-                 f"{'' if eff['curl_cffi'] else '  ✗ curl_cffi MANCANTE'}"
+        self.log(f"   fuckingfast: direct HTTP"
+                 f"{'' if eff['curl_cffi'] else '  ✗ curl_cffi MISSING'}"
                  f"   ·   datanodes: {eff['lanes']} pages, captcha {eff['captcha_wait']}s"
                  f"{', API key' if eff['api_key'] else ''}", "dim")
         self.log(f"   chrome: {eff['chrome']}", "dim")

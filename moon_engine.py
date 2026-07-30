@@ -4,7 +4,7 @@ MoonDownloader v16 -- headless engine
 GENERATED FILE. Do not edit by hand: run `python apply_web_v16.py` against a
 pristine gen_1.py and this file is rebuilt.
 
-The download engine of v14.8 with no GUI attached. State leaves through
+The download engine with no GUI attached. State leaves through
 Engine.snapshot(), commands come in through Engine.start()/stop(), and both are
 plain JSON-able dicts -- moon_bridge.py hands them straight to the WebView.
 
@@ -1061,4 +1061,4 @@ class Engine:
 if __name__ == "__main__":
     engine = Engine()
     print(json.dumps(engine.snapshot(0)["metrics"], indent=2))
-    print(f"{VERSION}  ·  headless engine ok  ·  avvia la GUI con: python moon_bridge.py")
+    print(f"{VERSION}  ·  headless engine ok  ·  start the GUI with: python moon_bridge.py")
