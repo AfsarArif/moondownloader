@@ -1100,6 +1100,86 @@ async def shutdown_chrome() -> None:
         _CHROME_PROC = None
 
 
+# ── deferred launch ───────────────────────────────────────────────────────────
+async def _start_playwright():
+    """Boot the Playwright driver.
+
+    Its own function so a batch that never touches datanodes never imports
+    playwright at all, and so the regression test can count driver boots.
+    """
+    from playwright.async_api import async_playwright
+    return await async_playwright().start()
+
+
+class BrowserGate:
+    """The one browser every extraction worker shares, opened on first demand.
+
+    fuckingfast.co is resolved over plain HTTPS with a Chrome TLS fingerprint
+    (~0.25 s per link): no browser, no profile, not even the Playwright driver's
+    node process. The front-ends used to call open_browser() once per worker at
+    the top of _run(), before reading a single URL, so a batch of nothing but
+    fuckingfast links still paid ~1.5 s of driver boot and put a Chrome window on
+    screen - visible, because Turnstile hands no token to a headless build, so
+    datanodes needs headless=False and every launch is therefore seen.
+
+    get() is the only thing that launches, and only the datanodes branch calls
+    it: no datanodes link, no browser. Concurrent first calls collapse onto one
+    instance behind the lock, which is what the shared cf_clearance profile needs
+    anyway.
+
+    *`Playwright.stop()` must run on the loop that called `start()` - keep a gate
+    inside a single asyncio.run()/engine run, never hand one across two.*
+    """
+
+    __slots__ = ("_args", "_headless", "_on_open", "_lock", "_pw", "_browser", "_shared")
+
+    def __init__(self, launch_args: list[str], *, headless: bool | None = None,
+                 on_open=None) -> None:
+        self._args     = list(launch_args)
+        self._headless = headless
+        self._on_open  = on_open      # fired once, immediately before the launch
+        self._lock     = asyncio.Lock()
+        self._pw       = None
+        self._browser  = None
+        self._shared   = False
+
+    @property
+    def opened(self) -> bool:
+        return self._browser is not None
+
+    async def get(self):
+        """The shared browser, launching Playwright + Chrome on the first call."""
+        if self._browser is not None:
+            return self._browser
+        async with self._lock:
+            if self._browser is None:
+                if self._on_open is not None:
+                    self._on_open()
+                pw              = await _start_playwright()
+                browser, shared = await open_browser(pw, self._args, self._headless)
+                self._pw        = pw
+                self._browser   = browser
+                self._shared    = shared
+            return self._browser
+
+    async def aclose(self) -> None:
+        """Tear down browser then driver, in that order. No-op if nothing opened."""
+        async with self._lock:
+            browser, pw, shared = self._browser, self._pw, self._shared
+            self._browser = None
+            self._pw      = None
+            if browser is not None:
+                if shared:
+                    await shutdown_chrome()      # lanes, CDP handle, the process
+                else:
+                    await close_browser(browser, False)
+            if pw is not None:
+                try:
+                    await pw.stop()
+                except Exception:
+                    pass
+
+
 # ── persistent shared context, bounded concurrency ─────────────────────────────
 # ONE context for everything (see the note above DN_LANES for why). _lanes holds
 # exactly that one context; _lane_queue is a pool of DN_LANES concurrency permits
