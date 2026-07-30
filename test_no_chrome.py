@@ -158,8 +158,8 @@ def check_sources(problems: list[str]) -> None:
 
 
 def cleanup() -> None:
-    for pattern in ("moon_log_*.txt", "moon_log_*.json", "moontech_cli_*.log",
-                    "moontech_cli_*.json", "output_links.txt", "failed_links.txt"):
+    for pattern in ("moontech_*.log", "moontech_*.json", "moon_log_*.txt", "moon_log_*.json",
+                    "output_links.txt", "failed_links.txt"):
         for path in glob.glob(str(HERE / pattern)):
             with contextlib.suppress(OSError):
                 os.unlink(path)

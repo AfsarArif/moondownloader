@@ -70,7 +70,7 @@ concurrency paths.
 ## Reporting bugs
 
 Use the [bug report template](https://github.com/LeyckerS/moondownloader/issues/new?template=bug_report.yml)
-and attach `moon_log_*.txt` (GUI) or `moontech_cli_*.log` (CLI). `MOON_DEBUG=1` adds
+and attach `moontech_*.log` (GUI) or `moontech_cli_*.log` (CLI). `MOON_DEBUG=1` adds
 extraction-level tracing.
 
 ## Coding style

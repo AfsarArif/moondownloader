@@ -78,14 +78,14 @@ Two different things look identical:
 Fixed in 14.6. The shared Chrome used to die after ~80 sequential extractions and every
 later link failed with "Target page, context or browser has been closed".
 `ensure_live_browser()` now re-validates and respawns it transparently. If you see that
-message again, attach `moon_log_*.txt` to a bug report.
+message again, attach `moontech_*.log` to a bug report.
 
 ## Where are my logs?
 
 Next to the scripts:
 
-- `moon_log_YYYYMMDD_HHMMSS.txt` — human-readable
-- `moon_log_YYYYMMDD_HHMMSS.json` — per-file metrics
+- `moontech_YYYYMMDD_HHMMSS.log` — human-readable
+- `moontech_YYYYMMDD_HHMMSS.json` — per-file metrics
 - CLI runs write `moontech_cli_*.log` / `.json`
 
 Attach the `.txt` (or `.log`) to any bug report. `MOON_DEBUG=1` adds extraction-level

@@ -194,8 +194,8 @@ means "window closed".
 
 | File | Description |
 |:--|:--|
-| `moon_log_*.txt` | Human-readable performance report |
-| `moon_log_*.json` | Per-file metrics (machine-readable) |
+| `moontech_*.log` | Human-readable performance report |
+| `moontech_*.json` | Per-file metrics (machine-readable) |
 | `output_links.txt` | Extracted direct links (Links-only mode) |
 | `failed_links.txt` | URLs that failed every retry |
 | `settings.json` | GUI settings, pasted links, language |

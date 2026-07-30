@@ -140,8 +140,8 @@ Place them next to the scripts:
 
 | File | Contents |
 |:--|:--|
-| `moon_log_*.txt` | human-readable performance report |
-| `moon_log_*.json` | per-file metrics |
+| `moontech_*.log` | human-readable performance report |
+| `moontech_*.json` | per-file metrics |
 | `moontech_cli_*.log` / `.json` | the same, from the CLI |
 | `output_links.txt` | extracted direct links (Links-only mode) |
 | `failed_links.txt` | URLs that failed every retry |

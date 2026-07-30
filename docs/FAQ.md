@@ -95,4 +95,4 @@ published yet.
 ## Where do I report bugs?
 
 [Bug report template](https://github.com/LeyckerS/moondownloader/issues/new?template=bug_report.yml).
-Attach `moon_log_*.txt` (GUI) or `moontech_cli_*.log` (CLI) from the failed session.
+Attach `moontech_*.log` (GUI) or `moontech_cli_*.log` (CLI) from the failed session.
