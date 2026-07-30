@@ -205,7 +205,7 @@ class Telemetry:
 
 # ── EXTRACTION ────────────────────────────────────────────────────────────────
 # Both host front-ends changed in 2026; the extraction layer now lives in
-# moon_extract.py so moon_tk.py and moon_cli.py share one implementation.
+# moon_extract.py so the engine and the CLI share one implementation.
 from moon_extract import (                       # noqa: E402
     extract_fuckingfast,
     extract_datanodes,

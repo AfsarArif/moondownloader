@@ -12,8 +12,7 @@ Asserted here, for the WebView engine and for the CLI:
 
     1. fuckingfast-only -> zero browsers, zero Playwright driver boots
     2. one datanodes link -> exactly one shared browser, torn down exactly once
-    3. no front-end calls open_browser() outside the gate  (static, covers moon_tk.py,
-       which cannot be imported without a display)
+    3. neither front-end calls open_browser() outside the gate  (static)
 
 Network, extraction and Chrome are all stubbed at the moon_extract level: what is
 under test is the dispatcher's decision to launch, not the extractors.
@@ -40,7 +39,7 @@ import moon_cli                                        # noqa: E402
 FF = [f"https://fuckingfast.co/x{n}/pack.part{n:02d}.rar" for n in range(1, 4)]
 DN = ["https://datanodes.to/y1/pack.part99.rar"]
 
-FRONT_ENDS = ("moon_tk.py", "moon_cli.py", "moon_engine.py")
+FRONT_ENDS = ("moon_engine.py", "moon_cli.py")
 
 calls = {"playwright": 0, "open_browser": 0, "close_browser": 0, "shutdown_chrome": 0}
 
@@ -145,7 +144,7 @@ def check(result, label, urls, want_browsers: int, problems: list[str]) -> None:
 
 
 def check_sources(problems: list[str]) -> None:
-    """moon_tk.py needs a display to run; its launch path is checked as source."""
+    """Belt and braces: the launch path is also checked as source, not only at runtime."""
     for name in FRONT_ENDS:
         text = (HERE / name).read_text(encoding="utf-8")
         if re.search(r"(?<!def )(?<!fake_)open_browser\s*\(", text):
