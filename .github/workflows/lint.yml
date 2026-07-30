@@ -22,11 +22,47 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Byte-compile all Python files
+      - name: Byte-compile every module
         run: |
-          python -m compileall -q gen_1.py gen_cli.py
+          python -m compileall -q \
+            moon_tk.py moon_cli.py \
+            moon_engine.py moon_extract.py moon_bridge.py \
+            build_engine.py render_gui.py \
+            integration_http.py integration_web.py test_no_chrome.py
 
-      - name: Check for syntax errors with py_compile
+  no-chrome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      # Chrome and the network are stubbed at the moon_extract boundary, so this
+      # job needs neither a browser nor a display -- only the engine's own imports.
+      - name: Install engine dependencies
+        run: pip install "aiohttp>=3.9" "curl_cffi>=0.7"
+
+      - name: A fuckingfast batch must not open a browser
+        run: python test_no_chrome.py
+
+  engine-is-generated:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      # moon_engine.py is generated from moon_tk.py. If someone edits one and not
+      # the other, the regenerated file differs and this fails.
+      - name: moon_engine.py still matches moon_tk.py
         run: |
-          python -c "import py_compile; py_compile.compile('gen_1.py', doraise=True)"
-          python -c "import py_compile; py_compile.compile('gen_cli.py', doraise=True)"
+          python build_engine.py
+          git diff --exit-code -- moon_engine.py
