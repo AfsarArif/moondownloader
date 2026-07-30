@@ -425,8 +425,7 @@ def build(src: str) -> str:
         "import math, time, random, traceback, json, datetime, collections, io\n"
         "from tkinter import filedialog, scrolledtext\n",
         "import os, re, asyncio, threading\n"
-        "import time, random, traceback, json, datetime, collections, io\n"
-        "from contextlib import AsyncExitStack\n",
+        "import time, random, traceback, json, datetime, collections, io\n",
         "imports")
     src = replace_once(
         src,
@@ -533,76 +532,7 @@ def build(src: str) -> str:
         '            self._track(rec)',
         "track on download")
 
-    # 7 ── Chrome only when datanodes actually needs it ---------------------
-    src = replace_once(
-        src,
-        "    async def _browser_worker(self, browser, wid, q, dl_sem, all_done, mark_done_fn,",
-        "    async def _browser_worker(self, get_browser, wid, q, dl_sem, all_done, mark_done_fn,",
-        "worker takes a browser provider")
-    src = replace_once(
-        src,
-        "                        proxy_url, cookies = await extract_datanodes(browser, url)",
-        "                        proxy_url, cookies = await extract_datanodes(await get_browser(), url)",
-        "lazy browser at the datanodes call site")
-    # The worker bumped the browser counter on entry, so a pure fuckingfast run
-    # reported N browsers while opening none.
-    src = replace_once(
-        src,
-        '        self._inc("_browsers")\n        my_tasks = []',
-        "        my_tasks = []",
-        "drop worker browser counter")
-    src = replace_once(
-        src,
-        '        finally:\n            self._inc("_browsers",-1)',
-        "        finally:\n            pass",
-        "drop worker browser decrement")
-    src = replace_once(
-        src,
-        '''        async with async_playwright() as p:
-            async def _launch(wid):
-                b, _shared = await open_browser(p, LAUNCH_ARGS)
-                try:
-                    await self._browser_worker(
-                        b, wid, q, dl_sem, all_done, mark_done,
-                        kill_counts, all_tasks, tasks_lock,
-                        output_links, failed_urls, dest_folder, mode, max_retries, telem)
-                finally:
-                    await close_browser(b, _shared)
-            await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
-''',
-        '''        # fuckingfast is pure HTTP: no browser, no profile, not even the Playwright
-        # driver. The old code opened Chrome per worker BEFORE looking at a single
-        # URL, so a batch of only fuckingfast links still launched it. Now
-        # Playwright starts, and Chrome opens, on the first datanodes link -- and
-        # never at all if there isn't one.
-        stack        = AsyncExitStack()
-        browser_box  : list = []
-        browser_lock = asyncio.Lock()
-
-        async def get_browser():
-            async with browser_lock:
-                if not browser_box:
-                    self.log("   datanodes: starting Chrome...", "dim")
-                    pw = await stack.enter_async_context(async_playwright())
-                    browser_box.append(await open_browser(pw, LAUNCH_ARGS))
-                    self._inc("_browsers")
-                return browser_box[0][0]
-
-        async def _launch(wid):
-            await self._browser_worker(
-                get_browser, wid, q, dl_sem, all_done, mark_done,
-                kill_counts, all_tasks, tasks_lock,
-                output_links, failed_urls, dest_folder, mode, max_retries, telem)
-
-        async with stack:
-            await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
-            for browser, shared in browser_box:
-                await close_browser(browser, shared)
-                self._inc("_browsers", -1)
-''',
-        "lazy browser in _run")
-
-    # 8 ── swap the Tk __main__ for the headless one, then append the API ---
+    # 7 ── swap the Tk __main__ for the headless one, then append the API ---
     main_at = src.index('if __name__ == "__main__":')
     src = src[:main_at].rstrip("\n") + "\n"
 

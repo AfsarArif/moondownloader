@@ -22,7 +22,6 @@ except ImportError:
     PIL_OK = False
 
 import aiohttp
-from playwright.async_api import async_playwright
 
 # ── THEME ──────────────────────────────────────────────────────────────────────
 BG      = "#080b12"
@@ -331,9 +330,7 @@ import sys                                       # noqa: E402  (gen_1.py has no 
 from moon_extract import (                       # noqa: E402
     extract_fuckingfast,
     extract_datanodes,
-    open_browser,
-    close_browser,
-    shutdown_chrome,
+    BrowserGate,
     close_ff_session,
     referer_for,
     HAVE_CURL_CFFI,
@@ -1078,10 +1075,9 @@ class App(tk.Tk):
 
             self._inc("_dls",-1)
 
-    async def _browser_worker(self, browser, wid, q, dl_sem, all_done, mark_done_fn,
+    async def _browser_worker(self, get_browser, wid, q, dl_sem, all_done, mark_done_fn,
                                kill_counts, all_tasks, tasks_lock,
                                output_links, failed_urls, dest_folder, mode, max_retries, telem):
-        self._inc("_browsers")
         my_tasks = []
         try:
             while not self._get("_stop_flag"):
@@ -1125,10 +1121,12 @@ class App(tk.Tk):
                             success = True
                     elif "datanodes.to" in parsed.netloc:
                         # API key set -> single JSON GET, no browser, no captcha.
-                        # Otherwise extract_datanodes() re-validates the shared
-                        # Chrome (respawning it if it died) and checks out one
-                        # window from the persistent lane pool internally.
-                        proxy_url, cookies = await extract_datanodes(browser, url)
+                        # get_browser() is where Chrome is actually launched, so a
+                        # batch with no datanodes link never opens one. After that
+                        # extract_datanodes() re-validates the shared Chrome
+                        # (respawning it if it died) and checks out one window from
+                        # the persistent lane pool internally.
+                        proxy_url, cookies = await extract_datanodes(await get_browser(), url)
                         rec.extract_s = time.monotonic()-t_start
                         if not proxy_url:
                             rec.notes.append("extraction failed")
@@ -1168,7 +1166,7 @@ class App(tk.Tk):
             if my_tasks:
                 await asyncio.gather(*my_tasks, return_exceptions=True)
         finally:
-            self._inc("_browsers",-1)
+            pass
 
     async def _run(self, urls, n_workers, max_dl, max_retries):
         t0           = time.monotonic()
@@ -1213,17 +1211,27 @@ class App(tk.Tk):
 
         snap_t = asyncio.create_task(snap_task())
 
-        async with async_playwright() as p:
-            async def _launch(wid):
-                b, _shared = await open_browser(p, LAUNCH_ARGS)
-                try:
-                    await self._browser_worker(
-                        b, wid, q, dl_sem, all_done, mark_done,
-                        kill_counts, all_tasks, tasks_lock,
-                        output_links, failed_urls, dest_folder, mode, max_retries, telem)
-                finally:
-                    await close_browser(b, _shared)
+        # fuckingfast is pure HTTP: no browser, no profile, not even the Playwright
+        # driver. Chrome opens on the first datanodes link and not before - a
+        # fuckingfast-only batch never launches one.
+        def _chrome_starting():
+            self._inc("_browsers")
+            self.log("   datanodes: starting Chrome...", "dim")
+
+        gate = BrowserGate(LAUNCH_ARGS, on_open=_chrome_starting)
+
+        async def _launch(wid):
+            await self._browser_worker(
+                gate.get, wid, q, dl_sem, all_done, mark_done,
+                kill_counts, all_tasks, tasks_lock,
+                output_links, failed_urls, dest_folder, mode, max_retries, telem)
+
+        try:
             await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
+        finally:
+            if gate.opened:
+                self._inc("_browsers", -1)
+            await gate.aclose()
 
         async with tasks_lock:
             stragglers = [t for t in all_tasks if not t.done()]
@@ -1234,7 +1242,6 @@ class App(tk.Tk):
         snap_stop.set()
         await _close_sess()
         await close_ff_session()
-        await shutdown_chrome()
         await _PROXY_POOL.close_all()
         telem.finish()
 

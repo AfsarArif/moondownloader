@@ -23,13 +23,11 @@ every download worker that wants to bump a byte count.*
 
 import os, re, asyncio, threading
 import time, random, traceback, json, datetime, collections, io
-from contextlib import AsyncExitStack
 from urllib.parse import urlparse, unquote
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, asdict
 
 import aiohttp
-from playwright.async_api import async_playwright
 
 # ── THEME ──────────────────────────────────────────────────────────────────────
 BG      = "#080b12"
@@ -340,9 +338,7 @@ import sys                                       # noqa: E402  (gen_1.py has no 
 from moon_extract import (                       # noqa: E402
     extract_fuckingfast,
     extract_datanodes,
-    open_browser,
-    close_browser,
-    shutdown_chrome,
+    BrowserGate,
     close_ff_session,
     referer_for,
     HAVE_CURL_CFFI,
@@ -677,9 +673,11 @@ class Engine:
                             success = True
                     elif "datanodes.to" in parsed.netloc:
                         # API key set -> single JSON GET, no browser, no captcha.
-                        # Otherwise extract_datanodes() re-validates the shared
-                        # Chrome (respawning it if it died) and checks out one
-                        # window from the persistent lane pool internally.
+                        # get_browser() is where Chrome is actually launched, so a
+                        # batch with no datanodes link never opens one. After that
+                        # extract_datanodes() re-validates the shared Chrome
+                        # (respawning it if it died) and checks out one window from
+                        # the persistent lane pool internally.
                         proxy_url, cookies = await extract_datanodes(await get_browser(), url)
                         rec.extract_s = time.monotonic()-t_start
                         if not proxy_url:
@@ -766,34 +764,26 @@ class Engine:
         snap_t = asyncio.create_task(snap_task())
 
         # fuckingfast is pure HTTP: no browser, no profile, not even the Playwright
-        # driver. The old code opened Chrome per worker BEFORE looking at a single
-        # URL, so a batch of only fuckingfast links still launched it. Now
-        # Playwright starts, and Chrome opens, on the first datanodes link -- and
-        # never at all if there isn't one.
-        stack        = AsyncExitStack()
-        browser_box  : list = []
-        browser_lock = asyncio.Lock()
+        # driver. Chrome opens on the first datanodes link and not before - a
+        # fuckingfast-only batch never launches one.
+        def _chrome_starting():
+            self._inc("_browsers")
+            self.log("   datanodes: starting Chrome...", "dim")
 
-        async def get_browser():
-            async with browser_lock:
-                if not browser_box:
-                    self.log("   datanodes: starting Chrome...", "dim")
-                    pw = await stack.enter_async_context(async_playwright())
-                    browser_box.append(await open_browser(pw, LAUNCH_ARGS))
-                    self._inc("_browsers")
-                return browser_box[0][0]
+        gate = BrowserGate(LAUNCH_ARGS, on_open=_chrome_starting)
 
         async def _launch(wid):
             await self._browser_worker(
-                get_browser, wid, q, dl_sem, all_done, mark_done,
+                gate.get, wid, q, dl_sem, all_done, mark_done,
                 kill_counts, all_tasks, tasks_lock,
                 output_links, failed_urls, dest_folder, mode, max_retries, telem)
 
-        async with stack:
+        try:
             await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
-            for browser, shared in browser_box:
-                await close_browser(browser, shared)
+        finally:
+            if gate.opened:
                 self._inc("_browsers", -1)
+            await gate.aclose()
 
         async with tasks_lock:
             stragglers = [t for t in all_tasks if not t.done()]
@@ -804,7 +794,6 @@ class Engine:
         snap_stop.set()
         await _close_sess()
         await close_ff_session()
-        await shutdown_chrome()
         await _PROXY_POOL.close_all()
         telem.finish()
 
