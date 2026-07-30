@@ -1,5 +1,5 @@
 """
-MoonDownloader v16 -- headless engine
+MoonDownloader V2 -- headless engine
 ════════════════════════════════════════
 The download engine with no GUI attached. State leaves through
 Engine.snapshot(), commands come in through Engine.start()/stop(), and both are
@@ -42,7 +42,7 @@ TEXT3   = "#3d506e"
 OK      = "#00e676"
 ERR     = "#ff4d6d"
 WARN    = "#ffb547"
-VERSION = "v16.0"
+VERSION = "v2.0"
 
 # ── TUNING ─────────────────────────────────────────────────────────────────────
 DEFAULT_DL_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads", "datanodes")

@@ -1,4 +1,4 @@
-"""Visual check for the v16 web GUI: render index.html in headless Chromium.
+"""Visual check for the web GUI: render index.html in headless Chromium.
 
     python3 render_gui.py OUT_DIR [width height]...
 

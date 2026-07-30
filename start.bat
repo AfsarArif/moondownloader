@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title MoonDownloader v16
+title MoonDownloader V2
 
 :: Find a working Python -- test each candidate actually runs
 set "PY="

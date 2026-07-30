@@ -93,7 +93,7 @@ def main() -> int:
 
         page.goto(url)
         page.wait_for_function(
-            "() => document.querySelector('#version').textContent.includes('v16')", timeout=8000)
+            "() => document.querySelector('#version').textContent.includes('v2')", timeout=8000)
         print("handshake over HTTP ok ·", page.eval_on_selector("#version", "e => e.textContent"))
 
         # The token gate must actually gate.

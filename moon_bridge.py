@@ -1,5 +1,5 @@
 """
-MoonDownloader v16 -- the GUI host
+MoonDownloader V2 -- the GUI host
 ═══════════════════════════════════════
 language: Python 3.10+, file: moon_bridge.py, runtime: stdlib (pywebview optional)
 

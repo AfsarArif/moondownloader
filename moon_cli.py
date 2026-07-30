@@ -1,5 +1,5 @@
 """
-MoonDownloader CLI  v16.0
+MoonDownloader CLI  v2.0
 ━━━━━━━━━━━━━━━━━━━━━━━━
 Headless version for server / multi-IP deployment.
 
