@@ -1,7 +1,7 @@
 """
 moon_extract.py — MoonDownloader extraction layer, rebuilt 2026-07-29.
 
-Drop-in replacement for the `# ── EXTRACTION ──` section of gen_1.py / gen_cli.py.
+Drop-in replacement for the `# ── EXTRACTION ──` section of moon_tk.py / moon_cli.py.
 Both host front-ends changed; the old code fails on every link for different reasons.
 
 fuckingfast.co
@@ -163,7 +163,7 @@ async def extract_fuckingfast(url: str) -> str | None:
                 body   = "" if target else r.text
             else:
                 # Degraded: only reachable if the host ever drops the TLS challenge.
-                # _sess / USER_AGENTS are provided by the host module (gen_1.py).
+                # _sess / USER_AGENTS are provided by the host module (moon_tk.py).
                 host_sess = globals().get("_sess")
                 host_uas  = globals().get("USER_AGENTS") or [FALLBACK_UA]
                 if host_sess is None:
@@ -986,7 +986,7 @@ async def open_browser(pw, launch_args: list[str], headless: bool | None = None)
 
     Stashes `pw`/`launch_args` so a mid-run crash can be repaired from inside
     ensure_live_browser() without the caller doing anything differently — a
-    worker in gen_1.py/gen_cli.py fetches its `browser` handle once at startup
+    worker in moon_tk.py/moon_cli.py fetches its `browser` handle once at startup
     and holds it for the whole run, so recovery has to happen underneath that
     stale reference, not by asking the caller to fetch a new one.
     """
@@ -1189,7 +1189,7 @@ class BrowserGate:
 async def _shared_context(browser):
     if browser.contexts:
         return browser.contexts[0]          # the persistent, on-disk profile
-    uas = globals().get("USER_AGENTS")       # set by the host module (gen_1.py)
+    uas = globals().get("USER_AGENTS")       # set by the host module (moon_tk.py)
     ctx = await browser.new_context(
         user_agent=uas[0] if uas else None,
         viewport={"width": 1360, "height": 900}, locale="en-US",
