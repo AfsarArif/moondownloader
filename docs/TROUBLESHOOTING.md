@@ -1,57 +1,92 @@
 # Troubleshooting
 
-Common issues and how to resolve them.
+## `avvia.bat` says "Python non trovato"
 
-## `avvia.bat` says "Python non trovato / Python not found"
+Python is missing, or not on `PATH`.
 
-You either don't have Python installed, or Python isn't on your `PATH`.
+1. Reinstall from <https://www.python.org/downloads/>
+2. Tick **"Add Python to PATH"** on the first installer screen
+3. Open a fresh Command Prompt: `python --version` must print 3.10 or higher
 
-Fix:
-1. Reinstall Python from <https://www.python.org/downloads/>
-2. During install, **check the "Add Python to PATH" box** on the first
-   installer screen.
-3. Open a fresh Command Prompt and run `python --version` — you should
-   see something starting with `Python 3.10.` or higher.
+## The GUI window never appears
 
-## `playwright install chromium` fails
+`avvia.bat` launches Edge (or Chrome) with `--app` against a loopback server. Run
+`python moon_bridge.py --serve`, open the printed URL in any Chromium browser, and
+read the console: a missing dependency or a refused port shows up there.
 
-Usually a proxy / firewall issue. Try:
+The server exits by itself after 12 s with no requests — the page polls every 80 ms,
+so "no requests" means "the window is closed". If your browser was still opening
+slowly, just run it again.
+
+## `fuckingfast.co` returns 403 on every link
+
+`curl_cffi` is missing. Cloudflare fingerprints the TLS ClientHello, and aiohttp's
+scores as a bot no matter which headers it sends.
 
 ```bash
-python -m playwright install --with-deps chromium
+pip install curl_cffi
 ```
 
-If your organisation intercepts TLS, set `HTTPS_PROXY` before running the
-install.
+The engine prints a warning at startup when the import fails.
 
-## Downloads stall at low speed and eventually get killed
+## `datanodes.to`: "Verification failed" / Error 600010 in the Turnstile widget
 
-Two independent things can look like a stall:
+Turnstile is refusing the browser, not the account.
 
-1. **A slow lane assigned by datanodes.to** — the CDN pins your session
-   to a specific lane. Sometimes it's slow. `STALL_MIN_MBS` in `gen_1.py`
-   controls when the downloader gives up.
-2. **A saturated local link** — if you're already using the full uplink
-   for something else, individual streams look "stalled" even though
-   they're just fighting for bandwidth. Lower **DL Streams** in the GUI.
+- Make sure a **real Chrome or Edge** is installed. Playwright's Chromium is not a
+  Google-branded build and Turnstile rejects it. Set the path explicitly in the GUI,
+  or `MOON_CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe`.
+- Do not force headless. `MOON_DN_HEADLESS=1` breaks Turnstile by design — the
+  challenge platform answers 401 and the token never arrives.
+- Lower **Pages** to 1–2. Many tabs solving challenges at once from one IP looks like
+  a farm.
+- Solve one manually if it asks: the clearance lands in the persistent profile and the
+  rest of the session reuses it.
 
-## `fuckingfast.co` links return "dead link"
+## Chrome opens even though I only pasted fuckingfast links
 
-The provider serves 404-like pages for expired uploads. The extractor
-detects this and fails fast on purpose — there's no retry that will
-recover a dead link.
+Fixed in v16. `moon_extract.BrowserGate` launches on the first datanodes link and never
+before, in the WebView GUI, the Tk GUI and the CLI alike.
 
-## `datanodes.to` needs a captcha
+If you still see it, you are running pre-v16 files: check that `moon_extract.py`
+contains `class BrowserGate` and that `gen_1.py` / `gen_cli.py` / `moon_engine.py`
+contain no bare `open_browser(` call. `python test_no_chrome.py` answers this in a
+second.
 
-If you see a captcha in the automated browser window, run fewer browsers
-in parallel (**Browsers** setting) and consider adding proxies via
-`proxies.txt`.
+## Chrome will not attach: "impossibile avviare chrome sulla porta 9222"
+
+Chrome refuses `--remote-debugging-port` on a `--user-data-dir` that another Chrome
+process already has open.
+
+- The app uses its own profile (`%LOCALAPPDATA%\MoonDownloader\chrome-profile`), so this
+  usually means a leftover MoonDownloader Chrome. Close it, or kill the process.
+- Port 9222 taken by something else: `MOON_CDP_PORT=9333`.
+- Never point `MOON_CHROME_PROFILE` at your daily-driver profile — you get a browser
+  you cannot attach to.
+
+## Downloads stall at low speed and get killed
+
+Two different things look identical:
+
+1. **A slow datanodes lane.** The CDN pins your session to a lane; some are slow. The
+   stall killer re-extracts to get a new one, up to `STALL_MAX_KILL` times.
+2. **A saturated uplink.** If the pipe is already full, every stream looks stalled.
+   Lower **DL streams**.
+
+## Extraction dies partway through a long session
+
+Fixed in 14.6. The shared Chrome used to die after ~80 sequential extractions and every
+later link failed with "Target page, context or browser has been closed".
+`ensure_live_browser()` now re-validates and respawns it transparently. If you see that
+message again, attach `moon_log_*.txt` to a bug report.
 
 ## Where are my logs?
 
-Next to `gen_1.py`:
+Next to the scripts:
 
-- `moontech_YYYYMMDD_HHMMSS.log` — human-readable
-- `moontech_YYYYMMDD_HHMMSS.json` — machine-readable per-file metrics
+- `moon_log_YYYYMMDD_HHMMSS.txt` — human-readable
+- `moon_log_YYYYMMDD_HHMMSS.json` — per-file metrics
+- CLI runs write `moontech_cli_*.log` / `.json`
 
-Attach the `.log` file to any bug report.
+Attach the `.txt` (or `.log`) to any bug report. `MOON_DEBUG=1` adds extraction-level
+tracing.

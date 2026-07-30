@@ -1,5 +1,9 @@
 # MoonDownloader v14.8 — cosa è cambiato e come si configura
 
+> Documento storico della linea 14.x (motore ed estrazione, validi anche adesso).
+> Per la v16 — GUI su WebView2, lancio pigro di Chrome, verifica — leggi
+> **[LEGGIMI_WEB_v16.md](LEGGIMI_WEB_v16.md)**.
+
 ## v14.8 — impostazioni GUI divise per metodo
 
 Il pannello SETTINGS descriveva un'architettura che non esiste più: un solo

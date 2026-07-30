@@ -1,42 +1,87 @@
 # Supported providers
 
-Moon Downloader currently extracts direct links from two providers.
-Each has a different extraction strategy tuned to how the site delivers
-files.
+Two providers, two completely different extraction mechanisms. They stopped having
+anything in common in the 14.2–14.8 line, which is why the GUI has separate panels
+for them and why one of them never opens a browser.
 
-## `datanodes.to`
+| | `datanodes.to` | `fuckingfast.co` |
+|:--|:--|:--|
+| Extraction | real Chrome over CDP | plain HTTPS, Chrome TLS fingerprint |
+| Browser | yes — one shared window | **none** |
+| Captcha | Cloudflare Turnstile | none |
+| Cost per link | seconds | ~0.25 s |
+| Settings that apply | `Pages`, `Captcha wait`, Chrome path, API key | none |
 
-- **Extraction:** full browser automation (Playwright + Chromium).
-- **Why:** the direct-link form uses JS-generated tokens, cannot be
-  scraped with a plain HTTP request.
-- **Notes:**
-  - Ad-overlay dismissal is handled automatically.
-  - CDN pins sessions to a specific "lane" — slow lanes cannot be
-    recovered by re-extracting.
-  - Recommended concurrency: **16 browsers** for 40+ file sessions,
-    **32 browsers** for 200+ files.
+Both extractors live in `moon_extract.py` and are shared by the WebView GUI
+(`moon_engine.py`), the Tk GUI (`gen_1.py`) and the CLI (`gen_cli.py`).
+
+---
 
 ## `fuckingfast.co`
 
-- **Extraction:** pure regex on the initial HTML response.
-- **Why:** the direct-download URL is baked into a `window.open` call
-  in the source of the intermediate page — no browser needed.
-- **Notes:**
-  - Much faster to extract than `datanodes.to` (~50–100 ms vs a full
-    page load).
-  - Dead links fail instantly (the server returns a distinctive HTML
-    marker).
-  - No captcha or ad flow.
+- **Extraction:** `POST /f/{id}/go` over `curl_cffi`, reading the `hx-redirect`
+  **response header**.
+- **Why not a regex on the HTML:** the landing page is Alpine + htmx and the `/dl/`
+  URL is not in the markup at all — it only exists in that header. The pre-14.4
+  regex extractor could not find what was never sent.
+- **Why not aiohttp:** Cloudflare fingerprints the TLS ClientHello. aiohttp scores as
+  a bot and gets `cf-mitigated: challenge` → **403 on every link**, whatever headers
+  you send. `curl_cffi` impersonates Chrome's ClientHello and sails through, so
+  `curl_cffi>=0.7` is a hard requirement for this provider.
+- **Downloads still use aiohttp:** `dl.fuckingfast.co` answers 206 with a correct
+  `Content-Range`, so the download engine needs no impersonation.
+- **Filename note:** FitGirl-style links carry the name as a URL **fragment**
+  (`https://fuckingfast.co/abc123#Game.part01.rar`). The file id is parsed off the
+  path, never off the raw string.
+- **Dead links fail fast** — 404 or a "not found" body, no retry can recover them.
+- **No browser, no captcha, nothing to tune.**
+
+## `datanodes.to`
+
+- **Extraction:** real Chrome (or Edge), spawned by the app with
+  `--remote-debugging-port` and attached over CDP.
+- **Why not Playwright's Chromium:** Turnstile rejects it. The launcher adds
+  automation switches, the binary is not a Google-branded build and the profile is
+  empty — the widget answers *Verification failed / Error 600010*. A Chrome we
+  spawned ourselves has none of those tells and keeps a **persistent profile**, so
+  the `cf_clearance` cookie survives between links and later files are challenged
+  less.
+- **Why not headless:** measured on Chromium 131, the challenge platform answers 401
+  on `/cdn-cgi/challenge-platform/.../pat/...` and `cf-turnstile-response` stays
+  empty forever. `headless=False` is deliberate — override with
+  `MOON_DN_HEADLESS=1` only if you have wired in a solver.
+- **Concurrency:** `Pages` (1–8) is how many tabs may be open **on the one shared
+  window**, not how many browsers. Separate contexts were tried in 14.6 and were
+  worse: multiple identities from one IP read as a bot farm and Turnstile hard-failed.
+- **Exactly one `POST /download` per link.** A second one re-runs SecSave server-side
+  and invalidates the token step 2 is holding.
+- **Premium API key:** set it in the GUI (or `MOON_DN_API_KEY`) and extraction becomes
+  a single JSON GET — no browser, no captcha. Free keys get 403 and fall back to Chrome.
+- **Lane pinning:** the CDN pins a session to a lane. A slow lane stays slow;
+  re-extracting is what the stall killer does about it.
+
+---
+
+## Chrome is opened on demand
+
+`moon_extract.BrowserGate` launches Playwright and Chrome on the **first datanodes
+link** and never before. A batch of nothing but fuckingfast links opens no browser and
+does not even boot the Playwright driver; a batch with one datanodes link opens exactly
+one shared instance, however many extractors are running.
+
+`python test_no_chrome.py` asserts both, for the engine and for the CLI.
+
+---
 
 ## Adding a new provider
 
-If you want to add support for another host, follow the same pattern:
-
-1. **Detection:** add the domain to the URL-router that dispatches
-   between providers (grep `datanodes` in `gen_1.py`).
-2. **Extractor:** write either a regex-based extractor (like
-   `fuckingfast.co`) or a Playwright flow (like `datanodes.to`).
-3. **Mirror in `gen_cli.py`:** as `CONTRIBUTING.md` requires — shared
-   logic goes in both files.
-4. **Test:** at least 10+ links, including one guaranteed-dead one, to
-   confirm dead-link detection kicks in.
+1. **Extractor** — write it in `moon_extract.py`, next to the two that exist. Pure
+   HTTP if the site allows it; a browser only if it genuinely requires one.
+2. **Dispatch** — add the domain to the `urlparse(url).netloc` branch in
+   `gen_1.py` and `gen_cli.py` (grep `datanodes.to` — there are two call sites).
+   Ask `BrowserGate.get()` for a browser **inside** the branch, never before it, or
+   you reintroduce the launch-for-nothing bug.
+3. **Regenerate** — `python apply_web_v16.py` rebuilds `moon_engine.py` from
+   `gen_1.py`. Never hand-edit `moon_engine.py`.
+4. **Test** — 10+ links including one guaranteed-dead one, so dead-link detection is
+   exercised, plus `python test_no_chrome.py`.

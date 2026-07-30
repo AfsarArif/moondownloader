@@ -31,10 +31,6 @@ Built with Python · Playwright · aiohttp · curl_cffi
 
 <div align="center">
 
-<img src="docs/gui_transfers.png" width="900"/>
-
-<br><br>
-
 <table>
 <tr>
 <td align="center"><b>Live transfers</b></td>
@@ -62,8 +58,12 @@ The two providers stopped having anything in common, so the app stopped pretendi
 | **Cost per link** | seconds | ~0.25 s |
 | **Settings** | `Pages`, `Captcha wait`, Chrome path, API key | nothing to tune |
 
-A batch of fuckingfast links **never launches Chrome** — not even the Playwright driver. A batch that
-contains one datanodes link opens exactly one shared Chrome, on demand.
+A batch of fuckingfast links **never launches Chrome** — not even the Playwright driver's node process.
+A batch that contains one datanodes link opens exactly one shared Chrome, on demand, no matter how many
+extractors are running.
+
+One `BrowserGate` in `moon_extract.py` owns that decision, so the WebView GUI, the Tk GUI
+(`avvia_tk.bat`) and the CLI all behave the same way — `test_no_chrome.py` asserts it for each of them.
 
 ---
 
@@ -135,11 +135,16 @@ avvia.bat
          ├── web/              index.html · styles.css · app.js   (the GUI)
          └── moon_engine.py    headless engine: start/stop/snapshot
                └── moon_extract.py   datanodes (Chrome+CDP) · fuckingfast (curl_cffi)
+                                     BrowserGate: the launch, deferred
 
-gen_1.py        the v14.8 tkinter GUI, still runnable (avvia_tk.bat)
+gen_1.py        the tkinter GUI, still runnable (avvia_tk.bat)
 gen_cli.py      headless CLI
 apply_web_v16.py   regenerates moon_engine.py from a pristine gen_1.py
 ```
+
+All three front-ends import the same `moon_extract`, so extraction, the Chrome lifecycle and the launch
+decision exist once. `moon_engine.py` is generated, never hand-edited: change `gen_1.py`, then run
+`python apply_web_v16.py`.
 
 **Pull model.** The page asks for `snapshot(cursor)` ~12 times per second instead of Python pushing at
 it: every DOM write stays on the page's own timeline and a late snapshot is a dropped frame, not a stall.
@@ -188,12 +193,16 @@ Place next to the scripts:
 ## ✅ Verification
 
 ```bash
-python test_no_chrome.py       # fuckingfast opens no browser; datanodes opens exactly one
+python test_no_chrome.py       # engine + CLI: no browser for fuckingfast, exactly one for datanodes
 python integration_http.py     # browser → loopback HTTP → engine (the path avvia.bat takes)
 python integration_web.py      # pywebview path
 python shots.py out/           # renders at 2554x1400 and 1440x900 + overflow audit
 python moon_engine.py          # headless engine: prints a snapshot and exits
+python apply_web_v16.py        # regenerate moon_engine.py; a clean run means gen_1.py still matches
 ```
+
+`test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no browser,
+no display and no Playwright install — it runs in CI on every push (`.github/workflows/lint.yml`).
 
 ---
 

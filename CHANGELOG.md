@@ -28,21 +28,36 @@ and no longer share a mechanism, so the interface stopped pretending they do.
   the page writes the sentence
 - Fluid type scale (`clamp()`): the interface scales with the window instead of staying at an
   8 px ink height on a 2560×1440 screen
-- `test_no_chrome.py`, `integration_http.py`, `integration_web.py`, `shots.py` — the verification suite
+- `test_no_chrome.py`, `integration_http.py`, `integration_web.py`, `shots.py` — the verification suite.
+  `test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no
+  browser, no display and no Playwright install, and covers the engine, the CLI and (statically)
+  `gen_1.py`
+- `moon_extract.BrowserGate` — the deferred launch: `get()` opens Playwright and Chrome on first
+  demand, collapses concurrent first calls onto one instance, and tears both down in order
 - Byte-based ETA, host split of the pasted links, per-host colouring in the link editor,
   `proxies.txt` count and `.tmp` resume count in the status bar
 
 ### Changed
-- **Chrome is opened lazily** — on the first datanodes link, never before
+- **Chrome is opened lazily** — on the first datanodes link, never before. The decision lives in
+  `moon_extract.BrowserGate` and is shared by the WebView engine, the Tk GUI and the CLI
 - `Captcha` default 240 s → **30 s**, `Pages` default 3 → **8**
 - Settings and pasted links persist across restarts in `settings.json`
 - Every value the GUI sends is coerced and clamped in `Engine.apply_cfg()` before it reaches
   a semaphore
-- `gen_1.py` (the tkinter GUI) is untouched and still runnable via `avvia_tk.bat`
+- `gen_1.py` (the tkinter GUI) still runs unchanged from `avvia_tk.bat`; the only edit it took is
+  the lazy launch, so the two GUIs and the CLI cannot drift apart on it
+- `gen_cli.py --browsers` is documented as what it always was: parallel extraction workers, not
+  one browser each
+- CI byte-compiles every module, runs `test_no_chrome.py`, and regenerates `moon_engine.py` from
+  `gen_1.py` to prove the two have not drifted
 
 ### Fixed
-- **fuckingfast batches launched Chrome.** `_run` opened one browser per worker before looking
-  at a single URL, so a pure-HTTP batch still paid for Chrome and the Playwright driver
+- **fuckingfast batches launched Chrome.** Every front-end called `open_browser()` once per worker
+  at the top of the run, before reading a single URL, so a pure-HTTP batch paid ~1.5 s of Playwright
+  driver boot and put a Chrome window on screen — visible, because Turnstile issues no token to a
+  headless build, so datanodes forces `headless=False` and every launch is therefore seen
+- On the fallback path (no real Chrome found) each worker got its **own** Playwright Chromium while
+  the extraction layer only ever used one shared context — N browsers, one of them used
 - Transfer count showed the row cap (40) instead of the transfers in flight — a 124-file
   session reported "40 active"
 - The Log tab rendered the transfer list on top of the log: `.files { display: grid }` outranks

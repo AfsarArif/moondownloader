@@ -116,13 +116,44 @@ converte e blocca ogni numero nei suoi limiti (`workers` 2–32, `dl_streams` 2�
 | `web/styles.css` | tutto il lato estetico |
 | `web/app.js` | render, bridge, e un motore finto per la preview |
 | `web/assets/` | `mark.png`, `backdrop.png`, `window.png` (Higgsfield) |
-| `gen_1.py` | la GUI Tk v14.8, **non toccata** |
+| `gen_1.py` | la GUI Tk, sorgente del motore \u2014 unica modifica v16: il lancio pigro di Chrome |
+| `gen_cli.py` | la CLI headless, stesso motore e stesso lancio pigro |
+| `test_no_chrome.py` | verifica che fuckingfast non apra nessun browser |
 | `prep_assets.py` | rigenera gli asset dai render grezzi |
 | `shots.py` | render di verifica in Chromium headless |
 | `integration_web.py` | test end-to-end GUI ↔ bridge ↔ Engine |
 
-`apply_web_v16.py` **legge** `gen_1.py`, non lo scrive: la v14.8 continua a
+`apply_web_v16.py` **legge** `gen_1.py`, non lo scrive: la GUI Tk continua a
 funzionare. `moon_engine.py` è generato — non modificarlo a mano, rigeneralo.
+
+---
+
+## Chrome si apre solo se serve
+
+Fino alla v15 ogni front-end chiamava `open_browser()` **una volta per worker**
+all'inizio del run, prima di guardare un solo URL. Risultato: incollavi solo link
+fuckingfast — che sono HTTP puro, ~0,25 s a link, zero browser — e ti si apriva
+comunque una finestra di Chrome, più il driver Playwright (~1,5 s di avvio). La
+finestra era per forza visibile: Turnstile non rilascia il token a un Chrome
+headless, quindi datanodes gira con `headless=False` e ogni lancio si vede.
+
+Ora la decisione sta in un punto solo, `moon_extract.BrowserGate`:
+
+- `get()` è l'unica cosa che lancia, e la chiama **solo** il ramo datanodes
+- niente link datanodes → niente browser, niente driver, niente processo node
+- più worker che chiedono insieme collassano su **una sola** istanza condivisa
+  (che è quello che serve al profilo con il `cf_clearance`)
+- `aclose()` chiude nell'ordine giusto: prima Chrome, poi il driver
+
+Vale per tutti e tre i front-end: GUI WebView, GUI Tk (`avvia_tk.bat`) e CLI.
+
+```
+python test_no_chrome.py
+```
+
+Verifica motore e CLI, e controlla i sorgenti di tutti e tre: nessuna chiamata
+diretta a `open_browser(`. Non serve né browser né display né Playwright
+installato — gira anche in CI a ogni push.
 
 ---
 
