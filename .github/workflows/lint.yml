@@ -25,9 +25,8 @@ jobs:
       - name: Byte-compile every module
         run: |
           python -m compileall -q \
-            moon_tk.py moon_cli.py \
-            moon_engine.py moon_extract.py moon_bridge.py \
-            build_engine.py render_gui.py \
+            moon_engine.py moon_cli.py \
+            moon_extract.py moon_bridge.py render_gui.py \
             integration_http.py integration_web.py test_no_chrome.py
 
   no-chrome:
@@ -48,21 +47,3 @@ jobs:
 
       - name: A fuckingfast batch must not open a browser
         run: python test_no_chrome.py
-
-  engine-is-generated:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-
-      # moon_engine.py is generated from moon_tk.py. If someone edits one and not
-      # the other, the regenerated file differs and this fails.
-      - name: moon_engine.py still matches moon_tk.py
-        run: |
-          python build_engine.py
-          git diff --exit-code -- moon_engine.py
