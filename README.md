@@ -14,6 +14,8 @@ Built with Python · Playwright · aiohttp · curl_cffi
 [![Playwright](https://img.shields.io/badge/Playwright-Chromium-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
 [![WebView2](https://img.shields.io/badge/GUI-Edge%20WebView2-0078D6?style=for-the-badge&logo=microsoftedge&logoColor=white)](https://developer.microsoft.com/microsoft-edge/webview2/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/LeyckerS/moondownloader/lint.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/LeyckerS/moondownloader/actions/workflows/lint.yml)
+[![Stars](https://img.shields.io/github/stars/LeyckerS/moondownloader?style=for-the-badge&logo=github&logoColor=white&color=E3B341)](https://github.com/LeyckerS/moondownloader/stargazers)
 
 ---
 
