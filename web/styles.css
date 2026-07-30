@@ -1,0 +1,921 @@
+/* ════════════════════════════════════════════════════════════════════════
+   MoonDownloader v16 — GUI stylesheet
+   target: WebView2 (Chromium) on Windows 10/11, and any Chromium for preview
+
+   Everything Tk could not do lives here: real anti-aliasing, real alpha,
+   backdrop blur, gradient strokes, GPU transitions, honest letter-spacing.
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Fluid base. This is the fix for "tutto minuscolo": at 1280px wide the base
+     is ~16px, at 2560px it is 19px, so a maximised window scales its type and
+     spacing instead of keeping 8px glyphs. */
+  font-size: clamp(13px, 0.42vw + 10.6px, 19px);
+
+  --ink:        #05070c;
+  --panel:      rgba(16, 22, 34, 0.72);
+  --panel-solid:#0b1018;
+  --panel-hi:   rgba(9, 13, 21, 0.86);
+  --line:       rgba(120, 150, 200, 0.13);
+  --line-hi:    rgba(140, 180, 235, 0.28);
+  --glass:      rgba(255, 255, 255, 0.055);
+
+  --teal:   #4fe3d0;
+  --violet: #8b7cf0;
+  --blue:   #5aa9ff;
+  --mint:   #35d6a4;
+  --amber:  #f0b64f;
+  --red:    #ff5c72;
+
+  --txt:  #dfe8f6;
+  --txt2: #8496b1;
+  --txt3: #55677f;
+
+  --r-card: 16px;
+  --r-in:   11px;
+  --gap:    0.85rem;
+
+  --mono: "Cascadia Mono", "JetBrains Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  --sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.9), 0 2px 10px -4px rgba(0, 0, 0, 0.7);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--ink);
+  color: var(--txt);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── ambience ─────────────────────────────────────────────────────────── */
+.ambience,
+.ambience-glow { position: fixed; inset: 0; pointer-events: none; }
+
+.ambience {
+  background: url("assets/window.png") center / cover no-repeat, var(--ink);
+  opacity: 0.9;
+}
+
+/* Second layer: a pair of soft radial blooms that pick up the brand colours.
+   Cheap, resolution-independent, and it gives the glass something to blur. */
+.ambience-glow {
+  background:
+    radial-gradient(120% 90% at 100% 0%,  rgba(79, 227, 208, 0.10), transparent 60%),
+    radial-gradient(90%  70% at 86%  6%,  rgba(139, 124, 240, 0.09), transparent 62%),
+    radial-gradient(140% 120% at 0% 100%, rgba(4, 6, 12, 0.9), transparent 70%);
+}
+
+/* ── shell ────────────────────────────────────────────────────────────── */
+.app {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.4rem;
+  background:
+    linear-gradient(90deg, rgba(5, 7, 12, 0.97) 0%, rgba(5, 7, 12, 0.72) 45%, rgba(5, 7, 12, 0.28) 100%),
+    url("assets/backdrop.png") right center / cover no-repeat;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg,
+      rgba(79, 227, 208, 0) 0%,
+      rgba(79, 227, 208, 0.55) 30%,
+      rgba(139, 124, 240, 0.55) 70%,
+      rgba(139, 124, 240, 0) 100%) 1;
+}
+
+.brand { display: flex; align-items: center; gap: 0.95rem; }
+
+.mark {
+  width: 3.1rem; height: 3.1rem;
+  filter: drop-shadow(0 0 14px rgba(79, 227, 208, 0.45)) drop-shadow(0 0 34px rgba(139, 124, 240, 0.22));
+}
+
+.wordmark {
+  font-size: 1.42rem;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+.wordmark span  { color: var(--txt2); font-weight: 300; }
+.wordmark strong{ color: #fff; font-weight: 650; margin-left: 0.32em; }
+
+.hosts {
+  margin-top: 0.28rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+.hosts i { margin: 0 0.5em; font-style: normal; opacity: 0.6; }
+
+.topbar-right { display: flex; align-items: center; gap: 1rem; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  padding: 0.42rem 0.95rem 0.42rem 0.75rem;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--txt2);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+  transition: color .25s, border-color .25s, box-shadow .25s;
+}
+.pill .dot {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: var(--txt3);
+  box-shadow: 0 0 0 0 transparent;
+}
+.pill[data-state="running"]  { color: var(--mint);  border-color: rgba(53, 214, 164, 0.45); box-shadow: 0 0 24px -8px rgba(53, 214, 164, 0.6); }
+.pill[data-state="running"] .dot  { background: var(--mint);  animation: breathe 1.9s ease-in-out infinite; }
+.pill[data-state="stopping"] { color: var(--amber); border-color: rgba(240, 182, 79, 0.45); }
+.pill[data-state="stopping"] .dot { background: var(--amber); animation: breathe 1.1s ease-in-out infinite; }
+.pill[data-state="done"]     { color: var(--teal);  border-color: rgba(79, 227, 208, 0.4); }
+.pill[data-state="done"] .dot     { background: var(--teal); }
+
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(53, 214, 164, 0.55); }
+  50%      { box-shadow: 0 0 0 0.42rem rgba(53, 214, 164, 0); }
+}
+
+.version { font-family: var(--mono); font-size: 0.62rem; color: var(--txt3); }
+
+/* ── stage ────────────────────────────────────────────────────────────── */
+.stage {
+  display: grid;
+  grid-template-columns: clamp(21rem, 26vw, 27rem) minmax(0, 1fr);
+  gap: var(--gap);
+  padding: var(--gap) 1.1rem;
+  min-height: 0;
+}
+
+.side { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 0.8rem; min-height: 0; }
+.side-scroll { overflow-y: auto; padding-right: 0.35rem; display: grid; gap: var(--gap); align-content: start; }
+.main { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: var(--gap); min-height: 0; }
+
+/* ── card ─────────────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: var(--r-card);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 22%),
+    var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--glass);
+  backdrop-filter: blur(22px) saturate(120%);
+  transition: border-color .22s, box-shadow .22s, transform .22s;
+}
+.card:hover { border-color: var(--line-hi); }
+
+.card.accent-teal   { box-shadow: var(--shadow), inset 0 1px 0 var(--glass), 0 0 34px -18px rgba(79, 227, 208, 0.75); }
+.card.accent-violet { box-shadow: var(--shadow), inset 0 1px 0 var(--glass), 0 0 34px -18px rgba(139, 124, 240, 0.75); }
+
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.7rem; margin-bottom: 0.8rem;
+}
+.card-head h2 {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--txt2);
+}
+.card-head h2 em { font-style: normal; color: var(--txt3); letter-spacing: 0.16em; }
+
+.card-head h2 i,
+.dot-teal, .dot-violet, .dot-mint, .dot-plain {
+  width: 0.42rem; height: 0.42rem; border-radius: 50%; flex: none;
+}
+.dot-teal   { background: var(--teal);   box-shadow: 0 0 9px rgba(79, 227, 208, 0.9); }
+.dot-violet { background: var(--violet); box-shadow: 0 0 9px rgba(139, 124, 240, 0.9); }
+.dot-mint   { background: var(--mint);   box-shadow: 0 0 9px rgba(53, 214, 164, 0.9); }
+.dot-plain  { background: var(--txt3); }
+
+.count { font-family: var(--mono); font-size: 0.66rem; color: var(--teal); }
+
+.note { margin-top: 0.6rem; font-family: var(--mono); font-size: 0.6rem; line-height: 1.5; color: var(--txt3); }
+.note.tight { margin: -0.2rem 0 0.65rem; }
+.ok-line { font-family: var(--mono); font-size: 0.66rem; color: var(--violet); }
+.ok-line.bad { color: var(--red); }
+
+.chip {
+  font-family: var(--mono);
+  font-size: 0.55rem; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  color: var(--txt2);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+.chip.teal   { color: var(--teal);   border-color: rgba(79, 227, 208, 0.35);  background: rgba(79, 227, 208, 0.08); }
+.chip.violet { color: var(--violet); border-color: rgba(139, 124, 240, 0.35); background: rgba(139, 124, 240, 0.08); }
+.chip.mint   { color: var(--mint);   border-color: rgba(53, 214, 164, 0.35);  background: rgba(53, 214, 164, 0.08); }
+.chip.warn   { color: var(--amber);  border-color: rgba(240, 182, 79, 0.35);  background: rgba(240, 182, 79, 0.08); }
+.chip.demo   { color: var(--amber);  border-color: rgba(240, 182, 79, 0.5); }
+
+/* ── link editor ──────────────────────────────────────────────────────── */
+.editor {
+  position: relative;
+  height: 11.5rem;
+  border-radius: var(--r-in);
+  background: var(--panel-hi);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: border-color .2s, box-shadow .2s;
+}
+.editor:focus-within { border-color: rgba(79, 227, 208, 0.45); box-shadow: 0 0 0 3px rgba(79, 227, 208, 0.08); }
+
+.editor-paint,
+.editor textarea {
+  position: absolute; inset: 0;
+  padding: 0.7rem 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.62;
+  white-space: pre;
+  overflow: auto;
+  border: 0;
+  tab-size: 2;
+}
+.editor-paint { color: var(--txt3); pointer-events: none; }
+.editor-paint .dn { color: #6fd8cd; }
+.editor-paint .ff { color: #a394f5; }
+.editor-paint .ot { color: var(--txt3); }
+
+.editor textarea {
+  background: transparent;
+  color: transparent;
+  caret-color: var(--teal);
+  resize: none;
+  outline: none;
+}
+.editor textarea::selection { background: rgba(79, 227, 208, 0.22); }
+.editor textarea::placeholder { color: var(--txt3); opacity: 0.75; }
+
+/* ── rows, fields, buttons ────────────────────────────────────────────── */
+.row { display: flex; align-items: center; gap: 0.5rem; }
+.row.gap { margin-top: 0.7rem; }
+.row.labelled { margin-top: 0.55rem; }
+
+.in-label {
+  display: inline-flex; align-items: center; gap: 0.38rem;
+  width: 5.4rem; flex: none;
+  font-family: var(--mono); font-size: 0.64rem; color: var(--txt2);
+}
+.in-label svg { width: 0.95rem; height: 0.95rem; }
+
+.field {
+  flex: 1; min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 9px;
+  background: var(--panel-hi);
+  border: 1px solid var(--line);
+  color: var(--txt);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.field:focus { border-color: rgba(79, 227, 208, 0.45); box-shadow: 0 0 0 3px rgba(79, 227, 208, 0.08); }
+.field::placeholder { color: var(--txt3); }
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+.ghost {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.032);
+  border: 1px solid var(--line);
+  color: var(--txt2);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  transition: background .18s, border-color .18s, color .18s, transform .12s;
+}
+.ghost svg { width: 0.95rem; height: 0.95rem; }
+.ghost:hover { background: rgba(255, 255, 255, 0.07); border-color: var(--line-hi); color: var(--txt); }
+.ghost:active { transform: translateY(1px); }
+.ghost.icon { padding: 0.5rem; }
+
+svg { fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
+.ghost svg, .in-label svg { vector-effect: non-scaling-stroke; }
+
+/* ── segmented ────────────────────────────────────────────────────────── */
+.seg {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: 0.3rem; margin-top: 0.75rem; padding: 0.3rem;
+  border-radius: 12px;
+  background: var(--panel-hi);
+  border: 1px solid var(--line);
+}
+.seg button {
+  display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+  padding: 0.55rem 0.4rem;
+  border-radius: 9px;
+  font-family: var(--mono); font-size: 0.68rem;
+  color: var(--txt3);
+  transition: background .2s, color .2s, box-shadow .2s;
+}
+.seg button svg { width: 1rem; height: 1rem; }
+.seg button:hover { color: var(--txt2); }
+.seg button.on {
+  color: var(--teal);
+  background: linear-gradient(180deg, rgba(79, 227, 208, 0.2), rgba(90, 169, 255, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(79, 227, 208, 0.35), 0 6px 18px -12px rgba(79, 227, 208, 0.9);
+}
+
+/* ── slider ───────────────────────────────────────────────────────────── */
+.slider {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin-bottom: 0.55rem;
+  --accent: var(--teal);
+  --pct: 50%;
+}
+.slider[data-accent="violet"] { --accent: var(--violet); }
+.slider[data-accent="amber"]  { --accent: var(--amber); }
+
+.s-label { font-family: var(--mono); font-size: 0.68rem; color: var(--txt2); }
+.s-hint  { font-family: var(--mono); font-size: 0.58rem; color: var(--txt3); }
+.slider output {
+  font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+  color: var(--accent); min-width: 2.6em; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider input[type="range"] {
+  grid-column: 1 / -1;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.15rem;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+.slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.36rem;
+  border-radius: 999px;
+  /* The filled part is the same element: a hard-stopped gradient at --pct,
+     which the script updates on input. No second element to keep in sync. */
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, var(--blue)) 0%, var(--accent) var(--pct),
+      rgba(255, 255, 255, 0.07) var(--pct), rgba(255, 255, 255, 0.07) 100%);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 0.85rem; height: 0.85rem;
+  margin-top: -0.245rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0%, var(--accent) 55%);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 0.28rem color-mix(in srgb, var(--accent) 22%, transparent),
+              0 0 14px color-mix(in srgb, var(--accent) 70%, transparent);
+  transition: box-shadow .18s, transform .12s;
+}
+.slider input[type="range"]:hover::-webkit-slider-thumb  { transform: scale(1.12); }
+.slider input[type="range"]:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 0.45rem color-mix(in srgb, var(--accent) 20%, transparent),
+              0 0 18px color-mix(in srgb, var(--accent) 85%, transparent);
+}
+/* Recommended-value tick, positioned from data-rec by the script. */
+.slider.has-rec { position: relative; }
+.slider.has-rec::after {
+  content: "";
+  position: absolute;
+  left: var(--rec, 50%);
+  bottom: 0.05rem;
+  width: 1px; height: 0.3rem;
+  background: var(--txt3);
+  transform: translateX(-0.5px);
+}
+
+/* ── tracks / bars ────────────────────────────────────────────────────── */
+.track {
+  position: relative;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  overflow: visible;
+}
+.track.mini { margin-top: 0.75rem; }
+.track > i {
+  position: absolute; inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--mint) 60%, var(--teal)), var(--mint));
+  box-shadow: 0 0 12px -1px color-mix(in srgb, var(--mint) 75%, transparent);
+  transition: width .35s cubic-bezier(.22, .8, .3, 1);
+}
+.track > i::after {
+  content: "";
+  position: absolute; right: -0.18rem; top: 50%;
+  width: 0.55rem; height: 0.55rem;
+  transform: translateY(-50%) scale(0);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.9;
+  box-shadow: 0 0 10px currentColor;
+  transition: transform .2s;
+}
+/* The head dot only exists once there is progress -- at 0% it would sit at the
+   far left and read as a stray pixel. */
+.track > i.on::after { transform: translateY(-50%) scale(1); }
+.track > i.teal   { background: linear-gradient(90deg, color-mix(in srgb, var(--teal) 55%, var(--blue)), var(--teal)); box-shadow: 0 0 12px -1px rgba(79, 227, 208, 0.8); }
+.track > i.violet { background: linear-gradient(90deg, color-mix(in srgb, var(--violet) 55%, var(--blue)), var(--violet)); box-shadow: 0 0 12px -1px rgba(139, 124, 240, 0.8); }
+.track > i[style*="width: 0px"]::after,
+.track > i:not([style])::after { display: none; }
+
+/* ── link mix ─────────────────────────────────────────────────────────── */
+.mix { margin-top: 0.8rem; }
+.mix-bar {
+  display: flex;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.mix-bar > i { width: 0; transition: width .3s cubic-bezier(.22, .8, .3, 1); }
+.mix-dn    { background: linear-gradient(90deg, color-mix(in srgb, var(--teal) 55%, var(--blue)), var(--teal)); }
+.mix-ff    { background: linear-gradient(90deg, color-mix(in srgb, var(--violet) 60%, var(--blue)), var(--violet)); }
+.mix-other { background: linear-gradient(90deg, var(--txt3), var(--txt2)); }
+
+.mix-legend { display: flex; flex-wrap: wrap; gap: 0.15rem 1rem; margin-top: 0.55rem; }
+.lg {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-family: var(--mono); font-size: 0.6rem; color: var(--txt3);
+}
+.lg i { width: 0.36rem; height: 0.36rem; border-radius: 50%; background: currentColor; }
+.lg b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.lg.dn { color: var(--teal); }
+.lg.ff { color: var(--violet); }
+.lg.ot { color: var(--txt3); }
+.lg.off { color: var(--txt3); opacity: 0.65; }
+
+/* ── stats ────────────────────────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+.card.stat { padding: 0.85rem 1rem 0.95rem; }
+
+.stat-value { display: flex; align-items: baseline; gap: 0.4rem; }
+.stat-value b {
+  font-family: var(--mono);
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.stat-value span { font-family: var(--mono); font-size: 0.66rem; color: var(--txt3); }
+.card.stat[data-accent="teal"]   .stat-value b { color: var(--teal); }
+.card.stat[data-accent="mint"]   .stat-value b { color: var(--mint); }
+.card.stat[data-accent="violet"] .stat-value b { color: var(--violet); }
+.card.stat[data-accent="plain"]  .stat-value b { color: var(--txt); }
+
+.sub { margin-top: 0.7rem; font-family: var(--mono); font-size: 0.6rem; color: var(--txt3); }
+
+.spark { display: block; width: 100%; height: 2rem; margin-top: 0.5rem; overflow: visible; }
+.spark polyline {
+  fill: none;
+  stroke: url(#sparkStroke);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px rgba(79, 227, 208, 0.75));
+}
+.spark polygon { stroke: none; }
+.spark circle { fill: #fff; stroke: none; filter: drop-shadow(0 0 5px var(--teal)); }
+
+/* ── pipeline ─────────────────────────────────────────────────────────── */
+.pipeline .card-head { flex-wrap: wrap; }
+.pipeline .phase {
+  flex: 1 1 100%;
+  margin-top: -0.35rem;
+  font-family: var(--mono); font-size: 0.66rem; color: var(--amber);
+}
+.lane { display: grid; grid-template-columns: 1fr auto; gap: 0.3rem 0.7rem; margin-top: 0.55rem; }
+.lane-label {
+  font-family: var(--mono); font-size: 0.58rem; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--txt3);
+}
+.lane-count { font-family: var(--mono); font-size: 0.63rem; color: var(--txt2); font-variant-numeric: tabular-nums; }
+.lane .track { grid-column: 1 / -1; }
+
+/* ── feed ─────────────────────────────────────────────────────────────── */
+.card.feed { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; padding-bottom: 0.8rem; }
+.feed-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+
+.tabs { position: relative; display: flex; gap: 0.25rem; }
+.tabs button {
+  padding: 0.45rem 0.85rem;
+  border-radius: 9px;
+  font-family: var(--mono); font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--txt3);
+  transition: color .2s, background .2s;
+}
+.tabs button:hover { color: var(--txt2); }
+.tabs button.on { color: var(--teal); background: rgba(79, 227, 208, 0.08); }
+.tabs button b { margin-left: 0.4em; color: var(--txt2); font-weight: 700; }
+.tab-underline {
+  position: absolute; bottom: -0.25rem; left: 0;
+  height: 2px; width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  box-shadow: 0 0 10px rgba(79, 227, 208, 0.8);
+  transition: transform .32s cubic-bezier(.22, .8, .3, 1), width .32s cubic-bezier(.22, .8, .3, 1);
+}
+
+.feed-body { position: relative; min-height: 0; overflow: hidden; }
+.files { height: 100%; overflow-y: auto; display: grid; gap: 0.4rem; align-content: start; padding-right: 0.35rem; }
+/* Same trap as .empty: `display: grid` outranks the UA `[hidden]` rule, so the
+   transfer list stayed painted over the Log tab -- both tabs looked identical. */
+.files[hidden] { display: none; }
+.log[hidden]   { display: none; }
+
+/* ── file row ─────────────────────────────────────────────────────────── */
+.frow {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem 0.7rem;
+  border-radius: 13px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008));
+  border: 1px solid var(--line);
+  --c: var(--txt3);
+  transition: border-color .2s, background .2s, transform .12s;
+  content-visibility: auto;
+  contain-intrinsic-size: 3.4rem;
+}
+.frow:hover { border-color: var(--line-hi); transform: translateX(2px); }
+.frow[data-state="download"],
+.frow[data-state="extract"] { border-color: color-mix(in srgb, var(--c) 34%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 9%, transparent), rgba(255, 255, 255, 0.01)); }
+.frow[data-state="ok"]   { --c: var(--mint); }
+.frow[data-state="fail"] { --c: var(--red); }
+.frow[data-state="kill"] { --c: var(--amber); }
+.frow[data-state="download"] { --c: var(--violet); }
+.frow[data-state="extract"]  { --c: var(--teal); }
+.frow[data-state="queue"]    { --c: var(--txt3); }
+
+.frow .stripe {
+  width: 3px; height: 1.5rem; border-radius: 2px;
+  background: var(--c);
+  box-shadow: 0 0 10px -1px var(--c);
+}
+
+.ring { width: 1.6rem; height: 1.6rem; flex: none; }
+.ring circle { fill: none; stroke-width: 2.4; vector-effect: non-scaling-stroke; }
+.ring .ring-bg { stroke: color-mix(in srgb, var(--c) 22%, transparent); }
+.ring .ring-fg {
+  stroke: var(--c);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-dasharray: 0 100;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c) 80%, transparent));
+  transition: stroke-dasharray .3s linear;
+}
+.ring .ring-tick,
+.ring .ring-cross { stroke: var(--c); stroke-width: 2.2; display: none; }
+.frow[data-state="ok"]   .ring .ring-tick  { display: block; }
+.frow[data-state="fail"] .ring .ring-cross { display: block; }
+.frow[data-state="ok"]   .ring .ring-fg    { stroke-dasharray: 100 100 !important; }
+.frow[data-state="fail"] .ring .ring-fg    { stroke-dasharray: 0 100 !important; }
+.frow[data-state="extract"] .ring,
+.frow[data-state="kill"]    .ring { animation: spin 1.5s linear infinite; }
+.frow[data-state="extract"] .ring .ring-fg,
+.frow[data-state="kill"]    .ring .ring-fg { stroke-dasharray: 26 100 !important; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.frow-text { min-width: 0; display: grid; gap: 0.2rem; }
+.fname {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--txt);
+  white-space: nowrap; overflow: hidden;
+}
+.fstate { display: flex; align-items: center; gap: 0.4rem; font-family: var(--mono); font-size: 0.58rem; }
+.fstate i { width: 0.32rem; height: 0.32rem; border-radius: 50%; background: var(--c); }
+.fstate em { font-style: normal; color: color-mix(in srgb, var(--c) 70%, var(--txt2)); }
+.fstate u  { text-decoration: none; color: var(--txt3); font-variant-numeric: tabular-nums; }
+
+.fspeed {
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+  color: color-mix(in srgb, var(--c) 55%, var(--txt));
+  font-variant-numeric: tabular-nums;
+}
+
+.frow .foot {
+  position: absolute; left: 0.9rem; right: 0.9rem; bottom: 0.28rem;
+  height: 2px; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.frow[data-state="download"] .foot,
+.frow[data-state="kill"] .foot { opacity: 1; }
+.frow .foot > i {
+  display: block; height: 100%; width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 45%, #fff), var(--c));
+  transition: width .3s linear;
+}
+
+/* ── empty / log ──────────────────────────────────────────────────────── */
+.empty {
+  position: absolute; inset: 0;
+  display: grid; place-content: center; justify-items: center; gap: 0.35rem;
+  text-align: center;
+  pointer-events: none;
+}
+/* [hidden] is a UA rule; `.empty { display: grid }` outranks it, so the empty
+   state has to hide itself explicitly or it floats over the file list. */
+.empty[hidden] { display: none; }
+.empty img {
+  width: 5.4rem; height: 5.4rem;
+  opacity: 0.5;
+  filter: drop-shadow(0 0 24px rgba(79, 227, 208, 0.35));
+  animation: float 7s ease-in-out infinite;
+}
+.empty p { font-family: var(--mono); font-size: 0.72rem; color: var(--txt2); margin-top: 0.5rem; }
+.empty small { font-family: var(--mono); font-size: 0.6rem; color: var(--txt3); }
+@keyframes float {
+  0%, 100% { transform: translateY(-0.25rem); }
+  50%      { transform: translateY(0.25rem); }
+}
+
+.log {
+  height: 100%; overflow-y: auto;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--r-in);
+  background: rgba(3, 5, 9, 0.6);
+  border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 0.68rem; line-height: 1.62;
+  color: var(--txt2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.log .ok    { color: var(--mint); }
+.log .fail  { color: var(--red); }
+.log .warn,
+.log .kill,
+.log .retry { color: var(--amber); }
+.log .info  { color: var(--teal); }
+.log .dim   { color: var(--txt3); }
+
+/* ── primary button ───────────────────────────────────────────────────── */
+.primary {
+  position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  font-family: var(--mono);
+  font-size: 0.86rem; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: #04070c;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--teal) 72%, var(--blue)), var(--teal));
+  box-shadow: 0 14px 34px -16px rgba(79, 227, 208, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform .12s, box-shadow .25s, background .25s;
+}
+.primary svg { width: 1.05rem; height: 1.05rem; fill: currentColor; stroke: none; }
+.primary .ico-stop { display: none; }
+.primary:hover  { box-shadow: 0 18px 40px -14px rgba(79, 227, 208, 1), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+.primary:active { transform: translateY(1px); }
+
+.primary[data-state="running"],
+.primary[data-state="stopping"] {
+  background: linear-gradient(135deg, #ff7a8c, var(--red));
+  box-shadow: 0 14px 34px -16px rgba(255, 92, 114, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  animation: pulse-btn 2.4s ease-in-out infinite;
+}
+.primary[data-state="running"] .ico-play,
+.primary[data-state="stopping"] .ico-play { display: none; }
+.primary[data-state="running"] .ico-stop,
+.primary[data-state="stopping"] .ico-stop { display: block; }
+
+@keyframes pulse-btn {
+  0%, 100% { box-shadow: 0 14px 34px -16px rgba(255, 92, 114, 0.9),  inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+  50%      { box-shadow: 0 14px 44px -12px rgba(255, 92, 114, 1),    inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+}
+
+/* ── statusbar ────────────────────────────────────────────────────────── */
+.statusbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 1.4rem;
+  background: rgba(3, 5, 9, 0.72);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+.stack { font-family: var(--mono); font-size: 0.58rem; color: var(--txt3); }
+.stack i { margin: 0 0.5em; font-style: normal; opacity: 0.55; }
+.badges { display: flex; align-items: center; gap: 0.45rem; }
+
+/* ── toasts ───────────────────────────────────────────────────────────── */
+.toasts { position: fixed; right: 1.2rem; bottom: 3.2rem; display: grid; gap: 0.5rem; z-index: 20; }
+.toast {
+  padding: 0.65rem 0.9rem;
+  border-radius: 11px;
+  background: rgba(12, 17, 26, 0.94);
+  border: 1px solid var(--line-hi);
+  box-shadow: var(--shadow);
+  font-family: var(--mono); font-size: 0.66rem;
+  color: var(--txt);
+  animation: toast-in .22s ease-out;
+}
+.toast.bad { border-color: rgba(255, 92, 114, 0.5); color: #ffd3d9; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* ── scrollbars ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 175, 225, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(140, 175, 225, 0.3); background-clip: content-box; }
+
+/* ── narrow windows ──────────────────────────────────────────────────── */
+@media (max-width: 1080px) {
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow-y: auto; }
+  .side { grid-template-rows: auto auto; }
+  .side-scroll { overflow: visible; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card.feed { min-height: 26rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001s !important; transition-duration: .001s !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Motion & reactivity
+   Every animation here is either a state change the operator needs to notice
+   (a transfer finishing, a run starting) or a 200ms affordance on something
+   they touched. Nothing loops for decoration except the run-state pulses.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── language switch ─────────────────────────────────────────────────── */
+.lang {
+  display: flex;
+  padding: 0.2rem;
+  gap: 0.15rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+.lang button {
+  padding: 0.26rem 0.6rem;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--txt3);
+  transition: color .2s, background .2s, box-shadow .2s;
+}
+.lang button:hover { color: var(--txt2); }
+.lang button.on {
+  color: var(--teal);
+  background: linear-gradient(180deg, rgba(79, 227, 208, 0.2), rgba(90, 169, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(79, 227, 208, 0.35);
+}
+
+/* ── global progress hairline under the header ───────────────────────── */
+.topbar { position: relative; }
+.topbar-progress {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.topbar-progress > i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--blue), var(--teal) 55%, var(--violet));
+  box-shadow: 0 0 12px rgba(79, 227, 208, 0.9);
+  transition: width .45s cubic-bezier(.22, .8, .3, 1);
+}
+
+/* ── card entrance ───────────────────────────────────────────────────── */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(10px) scale(.994); }
+  to   { opacity: 1; transform: none; }
+}
+.reveal { animation: reveal-up .42s cubic-bezier(.22, .9, .3, 1) both; animation-delay: var(--d, 0ms); }
+
+/* ── cursor spotlight on cards ───────────────────────────────────────── */
+/* A 200px light that follows the pointer. --mx/--my are written by app.js on
+   pointermove, so the effect costs one custom-property update per frame and no
+   layout at all. */
+.card { --mx: 50%; --my: 0%; isolation: isolate; }
+.card::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(220px circle at var(--mx) var(--my),
+              rgba(120, 190, 255, 0.055), transparent 65%);
+  opacity: 0;
+  transition: opacity .25s;
+  pointer-events: none;
+  z-index: -1;
+}
+.card:hover::before { opacity: 1; }
+
+/* ── press feedback ──────────────────────────────────────────────────── */
+.ghost:active, .lang button:active, .seg button:active, .tabs button:active { transform: translateY(1px); }
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid rgba(79, 227, 208, 0.55);
+  outline-offset: 2px;
+}
+
+/* ── active-lane shimmer ─────────────────────────────────────────────── */
+/* Only while something is actually moving: a still bar with a travelling
+   highlight would lie about the transfer being alive. */
+@keyframes lane-shimmer { to { transform: translateX(220%); } }
+.track > i.live::before {
+  content: "";
+  position: absolute; inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-100%);
+  animation: lane-shimmer 1.5s ease-in-out infinite;
+}
+.track > i { overflow: hidden; }
+
+/* ── file rows: enter, finish, reorder ───────────────────────────────── */
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+.frow { animation: row-in .3s cubic-bezier(.22, .9, .3, 1) both; }
+
+/* A finished row flashes once. Cheap, and it is the one event worth catching
+   out of the corner of an eye. */
+@keyframes row-done {
+  0%   { box-shadow: 0 0 0 0 rgba(53, 214, 164, 0.55); }
+  100% { box-shadow: 0 0 0 0.65rem rgba(53, 214, 164, 0); }
+}
+.frow.just-done { animation: row-in .3s both, row-done .9s ease-out; }
+
+.frow[data-state="download"] .stripe,
+.frow[data-state="extract"] .stripe { animation: stripe-pulse 1.8s ease-in-out infinite; }
+@keyframes stripe-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px -1px var(--c); }
+  50%      { opacity: .55; box-shadow: 0 0 4px -1px var(--c); }
+}
+
+/* Transfers in flight sort above finished ones (order set by app.js), and the
+   finished tail dims so the eye lands on what is moving. */
+.frow[data-state="ok"], .frow[data-state="fail"] { opacity: 0.82; }
+.frow[data-state="ok"]:hover, .frow[data-state="fail"]:hover { opacity: 1; }
+
+/* ── stat numbers ────────────────────────────────────────────────────── */
+.stat-value b { transition: color .3s; will-change: contents; }
+.card.stat[data-accent="teal"].hot  .stat-value b { text-shadow: 0 0 18px rgba(79, 227, 208, 0.55); }
+.card.stat[data-accent="mint"].hot  .stat-value b { text-shadow: 0 0 18px rgba(53, 214, 164, 0.5); }
+
+/* ── tab cross-fade ──────────────────────────────────────────────────── */
+@keyframes tab-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.files:not([hidden]), .log:not([hidden]) { animation: tab-in .22s ease-out both; }
+
+/* ── empty state ─────────────────────────────────────────────────────── */
+.empty img { animation: float 7s ease-in-out infinite, reveal-up .5s both; }
+
+/* ── toast exit ──────────────────────────────────────────────────────── */
+.toast.out { animation: toast-out .25s ease-in forwards; }
+@keyframes toast-out { to { opacity: 0; transform: translateX(14px); } }
+
+/* ── first-paint skeleton on the stat numbers ────────────────────────── */
+.stat-value b.idle-dash { color: var(--txt3) !important; text-shadow: none !important; }

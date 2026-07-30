@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MoonDownloader</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Ambience: two fixed layers under everything. Kept out of the flow so the
+     card glass has something to blur, and so scrolling never repaints them. -->
+<div class="ambience" aria-hidden="true"></div>
+<div class="ambience-glow" aria-hidden="true"></div>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <img class="mark" src="assets/mark.png" alt="">
+      <div class="brand-text">
+        <div class="wordmark"><span>Moon</span><strong>Downloader</strong></div>
+        <div class="hosts">datanodes.to<i>·</i>fuckingfast.co</div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="lang" id="lang" role="group" aria-label="Language">
+        <button data-lang="en" class="on">EN</button>
+        <button data-lang="it">IT</button>
+      </div>
+      <div class="pill" id="statePill" data-state="idle">
+        <span class="dot"></span><span class="pill-label" id="stateLabel">IDLE</span>
+      </div>
+      <span class="version" id="version">v16.0</span>
+    </div>
+    <div class="topbar-progress"><i id="globalBar"></i></div>
+  </header>
+
+  <main class="stage">
+
+    <!-- ───────────────────────── settings column ───────────────────────── -->
+    <aside class="side">
+      <div class="side-scroll">
+
+        <section class="card reveal" style="--d:0ms">
+          <div class="card-head">
+            <h2 data-i18n="link">Links</h2>
+            <span class="count" id="linkCount">0 links</span>
+          </div>
+          <!-- Highlighted overlay: a <pre> painted under a transparent textarea,
+               scroll-synced. Per-host colouring without giving up native
+               editing, selection, undo or IME behaviour. -->
+          <div class="editor" id="editor">
+            <pre class="editor-paint" id="editorPaint" aria-hidden="true"></pre>
+            <textarea id="links" spellcheck="false" autocomplete="off"
+                      data-i18n-ph="links_ph"></textarea>
+          </div>
+          <div class="row gap">
+            <button class="ghost" id="btnLoadTxt">
+              <svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3v10h-8z"/><path d="M9 1.5v3h3"/><path d="M5.5 9h5M5.5 11.5h3.5"/></svg>
+              <span data-i18n="load_txt">Load .txt</span>
+            </button>
+            <button class="ghost" id="btnClear">
+              <svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 9h5.8l.6-9"/></svg>
+              <span data-i18n="clear">Clear</span>
+            </button>
+          </div>
+          <div class="mix">
+            <div class="mix-bar">
+              <i class="mix-dn" id="mixDn"></i><i class="mix-ff" id="mixFf"></i><i class="mix-other" id="mixOther"></i>
+            </div>
+            <div class="mix-legend">
+              <span class="lg dn"><i></i>datanodes <b id="cntDn">0</b></span>
+              <span class="lg ff"><i></i>fuckingfast <b id="cntFf">0</b></span>
+              <span class="lg ot"><i></i><span data-i18n="others">others</span> <b id="cntOther">0</b></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card reveal" style="--d:60ms">
+          <div class="card-head"><h2 data-i18n="destination">Destination</h2></div>
+          <div class="row">
+            <input class="field" id="outFolder" spellcheck="false" placeholder="E:\blackops3">
+            <button class="ghost icon" id="btnFolder" data-i18n-title="pick_folder">
+              <svg viewBox="0 0 16 16"><path d="M1.5 12.5v-9h4l1.4 2h7.6v7z"/></svg>
+            </button>
+          </div>
+          <div class="seg" id="modeSeg">
+            <button data-mode="download" class="on">
+              <svg viewBox="0 0 16 16"><path d="M8 2v7.5M5 7l3 3 3-3M3.5 13.5h9"/></svg>
+              <span data-i18n="mode_download">Download</span>
+            </button>
+            <button data-mode="links">
+              <svg viewBox="0 0 16 16"><path d="M6.5 9.5 9.5 6.5"/><path d="M7 4.5 8.6 3a2.7 2.7 0 0 1 3.8 3.8L11 8.2"/><path d="M9 11.5 7.4 13a2.7 2.7 0 0 1-3.8-3.8L5 7.8"/></svg>
+              <span data-i18n="mode_links">Links only</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="card reveal" style="--d:120ms">
+          <div class="card-head"><h2><span data-i18n="common">Common</span> <em data-i18n="common_sub">· both methods</em></h2></div>
+
+          <label class="slider" data-accent="teal">
+            <span class="s-label" data-i18n="extractors">Extractors</span>
+            <span class="s-hint" data-i18n="rec16">rec. 16</span>
+            <output id="outWorkers">16</output>
+            <input type="range" id="workers" min="2" max="32" step="1" value="16" data-rec="16">
+          </label>
+
+          <label class="slider" data-accent="violet">
+            <span class="s-label" data-i18n="dl_streams">DL streams</span>
+            <span class="s-hint" data-i18n="rec8">rec. 8</span>
+            <output id="outStreams">8</output>
+            <input type="range" id="streams" min="2" max="48" step="1" value="8" data-rec="8">
+          </label>
+
+          <label class="slider" data-accent="amber">
+            <span class="s-label" data-i18n="retries">Retries</span>
+            <span class="s-hint"></span>
+            <output id="outRetries">3</output>
+            <input type="range" id="retries" min="0" max="5" step="1" value="3">
+          </label>
+
+          <p class="note" data-i18n="note_streams">fewer streams = more bandwidth per file; the pipe is still the ceiling</p>
+        </section>
+
+        <section class="card accent-teal reveal" style="--d:180ms">
+          <div class="card-head">
+            <h2><i class="dot-teal"></i>datanodes.to</h2>
+            <span class="chip teal" id="dnChip">chrome</span>
+          </div>
+          <p class="note tight" data-i18n="dn_note">Real Chrome + Turnstile: it opens pages, not windows</p>
+
+          <label class="slider" data-accent="teal">
+            <span class="s-label" data-i18n="pages">Pages</span>
+            <span class="s-hint" data-i18n="rec8p">rec. 8</span>
+            <output id="outPages">8</output>
+            <input type="range" id="pages" min="1" max="8" step="1" value="8" data-rec="8">
+          </label>
+
+          <label class="slider" data-accent="teal">
+            <span class="s-label" data-i18n="captcha">Captcha</span>
+            <span class="s-hint" data-i18n="captcha_hint">manual wait</span>
+            <output id="outCaptcha">30s</output>
+            <input type="range" id="captcha" min="30" max="600" step="5" value="30" data-rec="30">
+          </label>
+
+          <div class="row labelled">
+            <span class="in-label">
+              <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.2"/><path d="M8 5.8V2M9.9 9.1l3.3 1.9M6.1 9.1l-3.3 1.9"/></svg>
+              Chrome
+            </span>
+            <input class="field" id="chromePath" spellcheck="false" data-i18n-ph="autodetect">
+            <button class="ghost icon" id="btnChrome" data-i18n-title="pick_chrome">
+              <svg viewBox="0 0 16 16"><path d="M1.5 12.5v-9h4l1.4 2h7.6v7z"/></svg>
+            </button>
+          </div>
+
+          <div class="row labelled">
+            <span class="in-label">
+              <svg viewBox="0 0 16 16"><circle cx="5" cy="8" r="3"/><path d="M8 8h6.5M11 8v2.6M13.3 8v2.2"/></svg>
+              <span data-i18n="api_key">API key</span>
+            </span>
+            <input class="field" id="apiKey" type="password" spellcheck="false" data-i18n-ph="premium">
+          </div>
+          <p class="note" data-i18n="dn_api_note">premium API key = direct JSON, no browser, no captcha</p>
+        </section>
+
+        <section class="card accent-violet reveal" style="--d:240ms">
+          <div class="card-head">
+            <h2><i class="dot-violet"></i>fuckingfast.co</h2>
+            <span class="chip violet">http</span>
+          </div>
+          <p class="ok-line" id="curlLine" data-i18n="ff_ok">curl_cffi active · hx-redirect, ~0.25s per link</p>
+          <p class="note" data-i18n="ff_note">nothing to tune: it opens no Chrome and has no captcha</p>
+        </section>
+
+      </div>
+
+      <div class="side-foot">
+        <button class="primary" id="btnStart" data-state="idle">
+          <svg class="ico-play" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5z"/></svg>
+          <svg class="ico-stop" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1.6"/></svg>
+          <span id="startLabel" data-i18n="start">Start</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ────────────────────────── live column ─────────────────────────── -->
+    <section class="main">
+
+      <div class="stats">
+        <article class="card stat reveal" data-accent="teal" style="--d:80ms">
+          <div class="card-head"><h2><i class="dot-teal"></i><span data-i18n="speed">Speed</span></h2></div>
+          <div class="stat-value"><b id="vSpeed">0</b><span id="uSpeed">MB/s</span></div>
+          <svg class="spark" id="spark" viewBox="0 0 100 30" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="var(--teal)" stop-opacity=".38"/>
+                <stop offset="1" stop-color="var(--teal)" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="sparkStroke" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="var(--blue)"/>
+                <stop offset="1" stop-color="var(--teal)"/>
+              </linearGradient>
+            </defs>
+            <polygon id="sparkArea" fill="url(#sparkFill)" points=""/>
+            <polyline id="sparkLine" points=""/>
+            <circle id="sparkHead" r="1.7" cx="0" cy="30"/>
+          </svg>
+        </article>
+
+        <article class="card stat reveal" data-accent="mint" style="--d:140ms">
+          <div class="card-head"><h2><i class="dot-mint"></i><span data-i18n="completed">Completed</span></h2></div>
+          <div class="stat-value"><b id="vDone">0</b><span id="uDone">/0</span></div>
+          <div class="track mini"><i id="barDone"></i></div>
+        </article>
+
+        <article class="card stat reveal" data-accent="violet" style="--d:200ms">
+          <div class="card-head"><h2><i class="dot-violet"></i><span data-i18n="downloaded">Downloaded</span></h2></div>
+          <div class="stat-value"><b id="vBytes">0</b><span>GB</span></div>
+          <div class="sub" id="subCounts">0 ok · 0 ko · 0 kill</div>
+        </article>
+
+        <article class="card stat reveal" data-accent="plain" style="--d:260ms">
+          <div class="card-head"><h2><i class="dot-plain"></i>ETA</h2></div>
+          <div class="stat-value"><b id="vEta">—</b></div>
+          <div class="sub" id="subRemaining">0 files remaining</div>
+        </article>
+      </div>
+
+      <article class="card pipeline reveal" style="--d:300ms">
+        <div class="card-head"><h2 data-i18n="pipeline">Pipeline</h2><span class="phase" id="phase">idle</span></div>
+        <div class="lane">
+          <span class="lane-label" data-i18n="extraction">Extraction</span>
+          <span class="lane-count" id="cntExtract">— / —</span>
+          <div class="track"><i id="barExtract" class="teal"></i></div>
+        </div>
+        <div class="lane">
+          <span class="lane-label" data-i18n="download_lane">Download</span>
+          <span class="lane-count" id="cntDownload">— / —</span>
+          <div class="track"><i id="barDownload" class="violet"></i></div>
+        </div>
+      </article>
+
+      <article class="card feed reveal" style="--d:340ms">
+        <div class="feed-head">
+          <div class="tabs" id="tabs">
+            <button data-tab="files" class="on"><span data-i18n="files_tab">Transfers</span> <b id="fileBadge"></b></button>
+            <button data-tab="log"><span data-i18n="log_tab">Log</span></button>
+            <span class="tab-underline" id="tabLine"></span>
+          </div>
+          <button class="ghost" id="btnWipe">
+            <svg viewBox="0 0 16 16"><path d="M12.5 2.5 7 8"/><path d="M3 13.5h5"/><path d="M7 8 3 13.5M7 8l1 5.5"/></svg>
+            <span data-i18n="wipe">Clear</span>
+          </button>
+        </div>
+
+        <div class="feed-body">
+          <div class="files" id="files"></div>
+
+          <div class="empty" id="empty">
+            <img src="assets/mark.png" alt="">
+            <p data-i18n="empty_title">nothing queued</p>
+            <small data-i18n="empty_sub">paste the links, pick a folder, hit Start</small>
+          </div>
+
+          <pre class="log" id="log" hidden></pre>
+        </div>
+      </article>
+
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span class="stack">python<i>·</i>playwright<i>·</i>aiohttp<i>·</i>curl_cffi</span>
+    <span class="badges">
+      <span class="chip warn" id="tmpChip" hidden>0 .tmp</span>
+      <span class="chip" id="proxyChip">no proxy</span>
+      <span class="chip demo" id="demoChip" hidden>demo</span>
+    </span>
+  </footer>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<template id="rowTpl">
+  <div class="frow">
+    <i class="stripe"></i>
+    <svg class="ring" viewBox="0 0 32 32">
+      <circle class="ring-bg" cx="16" cy="16" r="13"/>
+      <circle class="ring-fg" cx="16" cy="16" r="13" pathLength="100"/>
+      <path class="ring-tick" d="M11 16.4l3.2 3.2L21 12.6"/>
+      <path class="ring-cross" d="M12 12l8 8M20 12l-8 8"/>
+    </svg>
+    <div class="frow-text">
+      <span class="fname"></span>
+      <span class="fstate"><i></i><em></em><u></u></span>
+    </div>
+    <span class="fspeed"></span>
+    <div class="foot"><i></i></div>
+  </div>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>
