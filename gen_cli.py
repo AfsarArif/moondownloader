@@ -14,7 +14,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, asdict
 
 import aiohttp
-from playwright.async_api import async_playwright
 
 # ── TUNING (identical to GUI version) ─────────────────────────────────────────
 RECV_CHUNK             = 4  * 1024 * 1024
@@ -212,9 +211,7 @@ class Telemetry:
 from moon_extract import (                       # noqa: E402
     extract_fuckingfast,
     extract_datanodes,
-    open_browser,
-    close_browser,
-    shutdown_chrome,
+    BrowserGate,
     close_ff_session,
     referer_for,
     HAVE_CURL_CFFI,
@@ -469,7 +466,7 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
 
             with lock: dls_active -= 1
 
-    async def browser_worker(browser, wid):
+    async def browser_worker(get_browser, wid):
         nonlocal ok_count, fail_count
         while True:
             if all_done.is_set() and q.empty(): break
@@ -502,10 +499,12 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
                         success = True
                 elif "datanodes.to" in parsed.netloc:
                     # API key set -> single JSON GET, no browser, no captcha.
-                    # Otherwise extract_datanodes() re-validates the shared
-                    # Chrome (respawning it if it died) and checks out one
-                    # window from the persistent lane pool internally.
-                    proxy_url, cookies = await extract_datanodes(browser, url)
+                    # get_browser() is where Chrome is actually launched, so a
+                    # batch with no datanodes link never opens one. After that
+                    # extract_datanodes() re-validates the shared Chrome
+                    # (respawning it if it died) and checks out one window from
+                    # the persistent lane pool internally.
+                    proxy_url, cookies = await extract_datanodes(await get_browser(), url)
                     rec.extract_s = time.monotonic() - t_start
                     if not proxy_url:
                         print("  [fail] No URL extracted")
@@ -534,17 +533,21 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
 
             q.task_done()
 
-    print(f"\n[start] {len(urls)} links  |  {n_workers} browsers  |  "
+    print(f"\n[start] {len(urls)} links  |  {n_workers} extractors  |  "
           f"{max_dl} streams  |  {max_retries} retries\n")
 
-    async with async_playwright() as p:
-        async def _launch(wid):
-            b, _shared = await open_browser(p, LAUNCH_ARGS)
-            try:
-                await browser_worker(b, wid)
-            finally:
-                await close_browser(b, _shared)
-        await asyncio.gather(*[asyncio.create_task(_launch(i)) for i in range(n_workers)])
+    # fuckingfast is pure HTTP: no browser, no profile, not even the Playwright
+    # driver. Chrome opens on the first datanodes link and not before - a
+    # fuckingfast-only batch never launches one.
+    gate = BrowserGate(
+        LAUNCH_ARGS,
+        on_open=lambda: print("  [chrome] datanodes link found - starting Chrome", flush=True))
+
+    try:
+        await asyncio.gather(*[asyncio.create_task(browser_worker(gate.get, i))
+                               for i in range(n_workers)])
+    finally:
+        await gate.aclose()
 
     async with tasks_lock:
         stragglers = [t for t in all_tasks if not t.done()]
@@ -555,7 +558,6 @@ async def run(urls: list[str], output_dir: str, n_workers: int,
     stop_progress.set()
     await _close_sess()
     await close_ff_session()
-    await shutdown_chrome()
     await _PROXY_POOL.close_all()
     telem.finish()
 
@@ -582,7 +584,7 @@ def main():
         description="MoonDownloader CLI — headless downloader for server deployment")
     ap.add_argument("--urls",     required=True,  help="Text file with one URL per line")
     ap.add_argument("--output",   required=True,  help="Output folder for downloaded files")
-    ap.add_argument("--browsers", type=int, default=8,  help="Playwright browser instances (default: 8)")
+    ap.add_argument("--browsers", type=int, default=8,  help="Parallel extraction workers (default: 8)")
     ap.add_argument("--streams",  type=int, default=24, help="Concurrent download streams (default: 24)")
     ap.add_argument("--retries",  type=int, default=3,  help="Max retries per link (default: 3)")
     ap.add_argument("--proxies",  default="proxies.txt", help="Proxy list file (default: proxies.txt)")
