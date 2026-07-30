@@ -2,18 +2,18 @@
 
 # 🌙 Moon Downloader
 
-### **v14.1**
+### **v16.0**
 
-**Lightning-fast bulk file downloader** — Playwright extraction + aiohttp streaming, 253 MB/s peak on 2.5 Gbps fiber.
+**Bulk file downloader** — real-Chrome extraction for datanodes.to, pure-HTTP extraction for fuckingfast.co, aiohttp streaming, and a GUI that runs on Edge WebView2.
 
-**Supported providers:** datanodes.to · fuckingfast.co · pluggable via regex or browser flow.
+**Supported providers:** datanodes.to · fuckingfast.co
 
-Built with Python · Playwright · aiohttp
+Built with Python · Playwright · aiohttp · curl_cffi
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Playwright](https://img.shields.io/badge/Playwright-Chromium-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
-[![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/LeyckerS/moondownloader)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://github.com/LeyckerS/moondownloader)
+[![WebView2](https://img.shields.io/badge/GUI-Edge%20WebView2-0078D6?style=for-the-badge&logo=microsoftedge&logoColor=white)](https://developer.microsoft.com/microsoft-edge/webview2/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
 ---
 
@@ -27,29 +27,22 @@ Built with Python · Playwright · aiohttp
 
 ---
 
-## 📸 Screenshots
+## 📸 The v16 interface
 
 <div align="center">
 
-<table>
-<tr>
-<td align="center"><b>🖥️ Interface</b></td>
-<td align="center"><b>✅ Download Complete</b></td>
-</tr>
-<tr>
-<td><img src="screenshot_idle.png" width="500"/></td>
-<td><img src="screenshot_done.png" width="500"/></td>
-</tr>
-</table>
+<img src="docs/gui_transfers.png" width="900"/>
 
-<br>
+<br><br>
 
 <table>
 <tr>
-<td align="center"><b>🚀 253.8 MB/s — 47 files on 2.5 Gbps fiber</b></td>
+<td align="center"><b>Live transfers</b></td>
+<td align="center"><b>Engine log</b></td>
 </tr>
 <tr>
-<td><img src="screenshot_speed.png" width="700"/></td>
+<td><img src="docs/gui_transfers.png" width="450"/></td>
+<td><img src="docs/gui_log.png" width="450"/></td>
 </tr>
 </table>
 
@@ -57,132 +50,159 @@ Built with Python · Playwright · aiohttp
 
 ---
 
-## ⚡ Features
+## ⚡ What v16 is
 
-<table>
-<tr>
-<td width="50%">
+The two providers stopped having anything in common, so the app stopped pretending they did.
 
-### 🚀 Performance
-- **8–32 parallel browsers** for extraction
-- **16–64 concurrent download streams**
-- Stall detection & automatic lane kills
-- Resume interrupted downloads (`.tmp`)
+| | datanodes.to | fuckingfast.co |
+|:--|:--|:--|
+| **Extraction** | real Chrome over CDP + persistent profile | plain HTTPS with a Chrome TLS fingerprint |
+| **Browser** | yes — pages on one window, one identity | **none** |
+| **Captcha** | Turnstile: auto-solve, manual fallback | none |
+| **Cost per link** | seconds | ~0.25 s |
+| **Settings** | `Pages`, `Captcha wait`, Chrome path, API key | nothing to tune |
 
-</td>
-<td width="50%">
-
-### 🛡️ Reliability
-- Per-URL retry with exponential backoff
-- Dead link detection (instant fail, no wasted time)
-- Ad overlay bypass & popup dismissal
-- Per-session telemetry logs
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🎯 Providers
-- **fuckingfast.co** — regex extraction, no browser needed
-- **datanodes.to** — full browser automation flow
-- Automatic provider detection from URL
-
-</td>
-<td width="50%">
-
-### 🔧 Modes
-- **Download** — extract & download files
-- **Links only** — extract direct URLs to file
-- CLI version included (`gen_cli.py`)
-
-</td>
-</tr>
-</table>
+A batch of fuckingfast links **never launches Chrome** — not even the Playwright driver. A batch that
+contains one datanodes link opens exactly one shared Chrome, on demand.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
-### One-click launch (Windows)
+### One-click (Windows)
 
 1. Install **[Python 3.10+](https://www.python.org/downloads/)** — check ✅ *"Add Python to PATH"*
 2. Double-click **`avvia.bat`**
-3. Done. First run auto-installs everything.
+3. Done. The first run installs the dependencies and Chromium.
 
-### Manual setup
+`avvia.bat` starts a loopback HTTP server and opens the GUI in **Edge** (or Chrome) with `--app`:
+a window with no tabs and no address bar. No native GUI dependency, nothing to guess.
+
+### Manual
 
 ```bash
 pip install -r requirements.txt
 playwright install chromium
-python gen_1.py
+python moon_bridge.py            # GUI
+python moon_bridge.py --serve    # server only, prints the URL
+python gen_cli.py <url> ... -o <folder>   # headless CLI
 ```
 
-### CLI version
+### Still want the old Tk GUI?
 
-```bash
-python gen_cli.py <url1> <url2> ... -o <output_folder>
-```
+`avvia_tk.bat` → runs `gen_1.py`, untouched.
+
+### Just want to look at the interface?
+
+Open `web/index.html` in Chrome or Edge. It boots in **demo mode** with a synthetic engine.
+
+---
+
+## 🖥️ GUI features
+
+- **Links** — per-host colouring while you paste, live count, `datanodes / fuckingfast / others` split
+- **Per-method panels** — common knobs in one card, datanodes in its own, fuckingfast declaring it has nothing to tune
+- **Live transfers** — one row per file: progress ring, state, percentage, instantaneous speed. Active transfers sort above the finished tail
+- **Stats** — speed (3 s rolling window + sparkline), completed, downloaded, byte-based ETA
+- **Pipeline** — extraction and download tracked separately, because they run at the same time
+- **Log** — the engine's own lines, tagged and coloured, capped at 2000
+- **English / Italian** — switchable at runtime, English by default
+- Settings and pasted links persist in `settings.json` (atomic write)
 
 ---
 
 ## ⚙️ Settings
 
-| Setting | Range | Default | Description |
-|:--------|:-----:|:-------:|:------------|
-| **Browsers** | 8 – 32 | 16 | Parallel browser workers for link extraction |
-| **DL Streams** | 16 – 64 | 48 | Concurrent download connections |
-| **Retries** | 0 – 5 | 3 | Retry attempts per failed URL |
+| Setting | Range | Default | Applies to | Description |
+|:--|:--:|:--:|:--:|:--|
+| **Extractors** | 2 – 32 | 16 | both | Parallel extraction workers |
+| **DL streams** | 2 – 48 | 48 | both | Concurrent download connections |
+| **Retries** | 0 – 5 | 3 | both | Extraction retries per URL (network retries are separate) |
+| **Pages** | 1 – 8 | 8 | datanodes | Tabs on the shared Chrome window — not separate windows |
+| **Captcha** | 30 – 600 s | 30 | datanodes | Manual Turnstile wait |
+| **Chrome** | path | autodetect | datanodes | `chrome.exe` to drive over CDP |
+| **API key** | string | — | datanodes | Premium key → direct JSON, no browser, no captcha |
 
-> **Tip:** For 40+ file sessions, 16 browsers / 48 streams is the sweet spot. For 200+ files, push browsers toward 32.
-
----
-
-## 📂 Output Files
-
-| File | Description |
-|:-----|:------------|
-| `moontech_*.log` | Human-readable performance report |
-| `moontech_*.json` | Per-file metrics (machine-readable) |
-| `output_links.txt` | Extracted direct links (Links-only mode) |
-| `failed_links.txt` | URLs that failed all retries |
-
----
-
-## 📁 Optional Files
-
-Place in the same folder as `gen_1.py`:
-
-| File | Purpose |
-|:-----|:--------|
-| `proxies.txt` | Proxy list — `ip:port:user:pass` or `http://user:pass@ip:port` |
-| `logo.png` | Custom header logo (auto-scaled to 44×44) |
+> Fewer DL streams means more bandwidth per file; the pipe is still the ceiling.
 
 ---
 
 ## 🏗️ Architecture
 
-Single-file application (~1350 lines), structured in layers:
-
 ```
-gen_1.py
-├── Global config          — theme, tuning constants, user agents
-├── Resource singletons    — aiohttp session pool, proxy rotation
-├── Extraction layer       — fuckingfast (regex) + datanodes (Playwright)
-├── Download engine        — Range resume, stall detection, lane kills
-├── Telemetry              — 1 Hz snapshots, .log + .json output
-├── GUI (tkinter)          — live stats, dual progress bars, color log
-└── Async orchestration    — queue-based workers, semaphore concurrency
+avvia.bat
+   └── moon_bridge.py          loopback HTTP + token, launches Edge --app, OS dialogs
+         ├── web/              index.html · styles.css · app.js   (the GUI)
+         └── moon_engine.py    headless engine: start/stop/snapshot
+               └── moon_extract.py   datanodes (Chrome+CDP) · fuckingfast (curl_cffi)
+
+gen_1.py        the v14.8 tkinter GUI, still runnable (avvia_tk.bat)
+gen_cli.py      headless CLI
+apply_web_v16.py   regenerates moon_engine.py from a pristine gen_1.py
+```
+
+**Pull model.** The page asks for `snapshot(cursor)` ~12 times per second instead of Python pushing at
+it: every DOM write stays on the page's own timeline and a late snapshot is a dropped frame, not a stall.
+
+**The log has a cursor.** A bounded 6000-line ring plus a monotonic counter; the page asks for
+"everything after N" and, if it fell behind further than the ring, gets the oldest line still held
+rather than a gap it cannot detect.
+
+**Rows read live `FileRecord`s.** `download_file` publishes `rec.done_bytes` and `rec.live_mbs` about
+four times a second on **its own** window, kept separate from the stall detector's 60 s history.
+
+**Untrusted input.** Everything the page sends passes through `Engine.apply_cfg()`, which coerces and
+clamps every number before it reaches a semaphore.
+
+---
+
+## 🔒 The local server
+
+Binds **127.0.0.1 only**, on a kernel-chosen port, and every `/api/` call must carry the token minted
+at startup — without it, 403. The API starts downloads and reads paths, so this is not a formality.
+The process exits by itself after 12 s with no requests: the page polls every 80 ms, so "no requests"
+means "window closed".
+
+---
+
+## 📂 Output files
+
+| File | Description |
+|:--|:--|
+| `moon_log_*.txt` | Human-readable performance report |
+| `moon_log_*.json` | Per-file metrics (machine-readable) |
+| `output_links.txt` | Extracted direct links (Links-only mode) |
+| `failed_links.txt` | URLs that failed every retry |
+| `settings.json` | GUI settings, pasted links, language |
+
+## 📁 Optional files
+
+Place next to the scripts:
+
+| File | Purpose |
+|:--|:--|
+| `proxies.txt` | Proxy list — `ip:port:user:pass` or `http://user:pass@ip:port` |
+
+---
+
+## ✅ Verification
+
+```bash
+python test_no_chrome.py       # fuckingfast opens no browser; datanodes opens exactly one
+python integration_http.py     # browser → loopback HTTP → engine (the path avvia.bat takes)
+python integration_web.py      # pywebview path
+python shots.py out/           # renders at 2554x1400 and 1440x900 + overflow audit
+python moon_engine.py          # headless engine: prints a snapshot and exits
 ```
 
 ---
 
 ## 📋 Requirements
 
-- **OS:** Windows 10 / 11
+- **OS:** Windows 10 / 11 (the GUI needs Edge or Chrome — both ship with Chromium)
 - **Python:** 3.10+
-- **Disk:** ~150 MB for Chromium browser
-- **Packages:** `aiohttp`, `playwright`, `pillow`
+- **Disk:** ~150 MB for the Playwright Chromium (datanodes only)
+- **Packages:** `aiohttp`, `playwright`, `curl_cffi`; `pillow` optional, `pywebview` optional
 
 ---
 
