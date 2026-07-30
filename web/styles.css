@@ -918,4 +918,3 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 @keyframes toast-out { to { opacity: 0; transform: translateX(14px); } }
 
 /* ── first-paint skeleton on the stat numbers ────────────────────────── */
-.stat-value b.idle-dash { color: var(--txt3) !important; text-shadow: none !important; }

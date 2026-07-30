@@ -31,6 +31,13 @@ Built with Python · Playwright · aiohttp · curl_cffi
 
 <div align="center">
 
+<img src="docs/gui_speed.png" width="920"/>
+
+<sub>**195.7 MB/s** · 124 fuckingfast links · 8 DL streams · 12.63 GB in 1m23s · ETA 3m35s —
+and **not one browser window**, because no datanodes link was in the batch.</sub>
+
+<br><br>
+
 <table>
 <tr>
 <td align="center"><b>Live transfers</b></td>
@@ -60,7 +67,8 @@ The two providers stopped having anything in common, so the app stopped pretendi
 
 A batch of fuckingfast links **never launches Chrome** — not even the Playwright driver's node process.
 A batch that contains one datanodes link opens exactly one shared Chrome, on demand, no matter how many
-extractors are running.
+extractors are running. The screenshot above is that fix, visible: 124 fuckingfast links moving at
+195.7 MB/s with no browser window anywhere.
 
 One `BrowserGate` in `moon_extract.py` owns that decision, so the WebView GUI, the Tk GUI
 (`start_tk.bat`) and the CLI all behave the same way — `test_no_chrome.py` asserts it for each of them.
