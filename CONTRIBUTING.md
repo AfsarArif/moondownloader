@@ -56,7 +56,7 @@ Layers inside the engine:
   `moon_engine.py` and `moon_cli.py`.
 - **Never open a browser before you know you need one.** Ask `BrowserGate.get()` inside
   the provider branch that requires it. A launch at the top of a run is the bug
-  `test_no_chrome.py` exists to prevent.
+  `tests/test_no_chrome.py` exists to prevent.
 - **No new dependencies without a strong reason.** The stack is deliberately small:
   `aiohttp`, `playwright`, `curl_cffi`.
 - **English only.** Code, comments, log lines, dialog titles and docs. The GUI's EN/IT

@@ -39,7 +39,7 @@ links.
 ## Does Chrome open for fuckingfast links too?
 
 No, since V2. `moon_extract.BrowserGate` launches on the first datanodes link and never
-before — not even the Playwright driver's node process. `python test_no_chrome.py` asserts
+before — not even the Playwright driver's node process. `pytest tests/ -q` asserts
 it for the engine and the CLI, and checks both sources.
 
 ## What's the difference between `moon_bridge.py` and `moon_cli.py`?
