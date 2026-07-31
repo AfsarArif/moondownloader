@@ -54,7 +54,7 @@ Layers inside the engine:
   visible from both `moon_engine.py` and `moon_cli.py`.
 - **Never open a browser before you know you need one.** Ask `BrowserGate.get()` inside
   the provider branch that requires it. A launch at the top of a run is the bug
-  `test_no_chrome.py` exists to prevent.
+  `tests/test_no_chrome.py` exists to prevent.
 - **`moon_engine.py` and `moon_cli.py` still carry their own copy of the download engine**
   (`download_file`, `Telemetry`, `ProxyPool`). A fix to one belongs in both until that code
   moves into a shared module.
@@ -72,7 +72,7 @@ python integration_web.py      # pywebview path
 python render_gui.py out/           # GUI renders + overflow audit
 ```
 
-`test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it
+`tests/test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it
 needs no browser, no display and no Playwright install.
 
 Live testing: at least 10 links per provider, including one guaranteed-dead one so

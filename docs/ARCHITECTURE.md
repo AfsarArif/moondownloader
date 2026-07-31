@@ -123,7 +123,7 @@ every number to its limits (`workers` 2–32, `dl_streams` 2–48, `retries` 0�
 | `web/app.js` | rendering, the bridge, and a synthetic engine for the preview |
 | `web/assets/` | `mark.png`, `backdrop.png`, `window.png` |
 | `moon_cli.py` | the headless CLI |
-| `test_no_chrome.py` | asserts fuckingfast opens no browser |
+| `tests/test_no_chrome.py` | asserts fuckingfast opens no browser |
 | `render_gui.py` | verification renders in headless Chromium |
 | `integration_http.py` | end-to-end: browser ↔ loopback HTTP ↔ Engine |
 | `integration_web.py` | end-to-end: pywebview ↔ Engine |
@@ -153,7 +153,7 @@ The decision now lives in one place, `moon_extract.BrowserGate`:
 This holds for both front-ends: the GUI and the CLI.
 
 ```bash
-python test_no_chrome.py
+pytest tests/ -q
 ```
 
 Covers the engine and the CLI, and checks both sources for a direct `open_browser(` call. It needs no browser, no display and no Playwright install — it runs
@@ -245,7 +245,7 @@ builds the sentence. Switching language relabels what is already on screen, rows
 ## Verification
 
 ```bash
-python test_no_chrome.py       # no browser for fuckingfast, exactly one for datanodes
+pytest tests/ -q       # no browser for fuckingfast, exactly one for datanodes
 python integration_http.py     # browser → loopback HTTP → Engine (the path start.bat takes)
 python integration_web.py      # pywebview bridge → Engine (the --pywebview path)
 python render_gui.py out/           # renders at 2554x1400 and 1440x900 + an overflow audit
