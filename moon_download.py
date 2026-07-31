@@ -133,6 +133,7 @@ class ProxyPool:
                             ip, port = parts
                             loaded.append({"url": f"http://{ip}:{port}", "auth": None})
                 except Exception:
+                    # Skip line if proxy parsing or auth formatting fails
                     continue
         self.proxies = loaded
         return len(loaded)
@@ -166,6 +167,7 @@ class ProxyPool:
                 try:
                     await s.close()
                 except Exception:
+                    # Best-effort cleanup during shutdown; ignore session closure errors
                     pass
         self._sessions.clear()
 

@@ -295,6 +295,7 @@ def main():
     except KeyboardInterrupt:
         print("\nInterrupted.")
     except Exception:
+        # Catch unexpected top-level CLI exceptions to log crash traceback and exit cleanly
         crash = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crash_log.txt")
         with open(crash, "w", encoding="utf-8") as f: f.write(traceback.format_exc())
         traceback.print_exc()
