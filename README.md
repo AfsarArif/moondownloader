@@ -16,6 +16,7 @@ Built with Python · Playwright · aiohttp · curl_cffi
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/LeyckerS/moondownloader/lint.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/LeyckerS/moondownloader/actions/workflows/lint.yml)
 [![Stars](https://img.shields.io/github/stars/LeyckerS/moondownloader?style=for-the-badge&logo=github&logoColor=white&color=E3B341)](https://github.com/LeyckerS/moondownloader/stargazers)
+[![CodeTriage](https://www.codetriage.com/leyckers/moondownloader/badges/users.svg)](https://www.codetriage.com/leyckers/moondownloader)
 
 ---
 
