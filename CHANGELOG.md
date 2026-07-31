@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The documented verification commands pointed at `python test_no_chrome.py`, which stopped
   existing when the tests moved. They now point at `pytest tests/` (#43, @NanoRisk6)
+- `native_dialog` swallowed every exception, including a broken `_DIALOG_SRC`. It now catches
+  only `subprocess.TimeoutExpired` and `OSError`, so a real failure surfaces instead of
+  returning an empty path. Four other deliberate swallows in `moon_bridge.py`, `moon_cli.py`
+  and `moon_download.py` now say why they are there (#54, @AdvaitVarhade)
 
 ## [2.0] — V2
 

@@ -6,7 +6,7 @@ Moon Downloader is created and maintained by:
 
 ## Contributors
 
-Twenty-one people other than the maintainer have shipped changes to this
+Twenty-two people other than the maintainer have shipped changes to this
 project. Naming them here is the point of this file — the auto-updated list on
 the [contributors graph](https://github.com/LeyckerS/moondownloader/graphs/contributors)
 is useful, but it is not a thank-you.
@@ -36,6 +36,7 @@ In order of first contribution:
 | [@kushin25](https://github.com/kushin25) | `docs/CLI.md`, the CLI reference (#37) |
 | [@pollychen-lab](https://github.com/pollychen-lab) | the pytest suite (#38) **and the shared download engine (#41)** |
 | [@NanoRisk6](https://github.com/NanoRisk6) | pointed the documented verification commands at `pytest tests/` after the test move (#43) |
+| [@AdvaitVarhade](https://github.com/AdvaitVarhade) | narrowed `native_dialog`'s exception handling and documented four deliberate swallows (#54) |
 
 Dependabot handles the dependency and action bumps.
 
