@@ -53,6 +53,33 @@ and **not one browser window**, because no datanodes link was in the batch.</sub
 
 ---
 
+## 🔧 Engineering highlights
+
+**One browser decision, made once.** `BrowserGate` in `moon_extract.py` owns the question of whether
+Chrome is needed at all. A batch of `fuckingfast.co` links never launches it — not even the Playwright
+driver's node process. A batch containing one `datanodes.to` link opens exactly one shared Chrome, on
+demand, no matter how many extractors are running. The GUI and the CLI import the same gate, so they
+cannot diverge, and `test_no_chrome.py` asserts it for both in CI.
+
+**The UI pulls, Python never pushes.** The page requests `snapshot(cursor)` about twelve times a
+second instead of the engine writing into it. Every DOM write stays on the page's own timeline, so a
+late snapshot costs a dropped frame instead of a stalled interface.
+
+**The log ring has a cursor.** A bounded 6000-line ring plus a monotonic counter. The page asks for
+"everything after N"; if it fell behind further than the ring holds, it receives the oldest line still
+present rather than a silent gap it has no way to detect.
+
+**Untrusted input is clamped at one boundary.** Everything the page sends passes through
+`Engine.apply_cfg()`, which coerces and clamps every number before it can reach a semaphore. There is
+one place to audit, not one per setting.
+
+**Measured, not asserted.** 195.7 MB/s across 124 links on 8 download streams — 12.63 GB in 1m23s, 29
+files done, 0 failed, no browser window opened. Method and instrumentation in
+**[docs/ENGINEERING_NOTES.md](docs/ENGINEERING_NOTES.md)**; the full design writeup is in
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+---
+
 ## ⚡ What V2 is
 
 The two providers stopped having anything in common, so the app stopped pretending they did.
