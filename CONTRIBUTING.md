@@ -36,6 +36,7 @@ moon_bridge.py     loopback HTTP + token, launches Edge/Chrome --app, OS dialogs
   moon_engine.py   the engine with no GUI: start/stop/snapshot
     moon_extract.py  datanodes (real Chrome over CDP) · fuckingfast (curl_cffi)
                      BrowserGate: the launch, deferred until a datanodes link
+    moon_download.py download_file · Telemetry · ProxyPool
 
 moon_cli.py        argparse CLI, same engine, same extraction layer
 ```
@@ -43,21 +44,19 @@ moon_cli.py        argparse CLI, same engine, same extraction layer
 Layers inside the engine:
 
 - **Extraction** — `moon_extract.py`, shared by all three front-ends
-- **Download engine** — aiohttp, Range-header resume, stall detection, proxy rotation
-- **Telemetry** — 1 Hz snapshots, `.txt` + `.json` output
+- **Download engine** — `moon_download.py`, shared by the GUI engine and CLI
+- **Telemetry** — `moon_download.py`, 1 Hz snapshots, `.txt` + `.json` output
 - **GUI** — `web/` over the loopback API, hosted by `moon_bridge.py`
 
 ## Rules that are not style preferences
 
-- **Shared logic goes in `moon_extract.py`**, not copy-pasted between front-ends. If a
-  change touches extraction or the Chrome lifecycle, it must land in one place and be
-  visible from both `moon_engine.py` and `moon_cli.py`.
+- **Shared logic goes in `moon_extract.py` or `moon_download.py`**, not copy-pasted between
+  front-ends. If a change touches extraction, the Chrome lifecycle, downloading,
+  telemetry or proxy rotation, it must land in one place and be visible from both
+  `moon_engine.py` and `moon_cli.py`.
 - **Never open a browser before you know you need one.** Ask `BrowserGate.get()` inside
   the provider branch that requires it. A launch at the top of a run is the bug
   `test_no_chrome.py` exists to prevent.
-- **`moon_engine.py` and `moon_cli.py` still carry their own copy of the download engine**
-  (`download_file`, `Telemetry`, `ProxyPool`). A fix to one belongs in both until that code
-  moves into a shared module.
 - **No new dependencies without a strong reason.** The stack is deliberately small:
   `aiohttp`, `playwright`, `curl_cffi`.
 - **English only.** Code, comments, log lines, dialog titles and docs. The GUI's EN/IT
@@ -72,7 +71,7 @@ python integration_web.py      # pywebview path
 python render_gui.py out/           # GUI renders + overflow audit
 ```
 
-`test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it
+`tests/test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it
 needs no browser, no display and no Playwright install.
 
 Live testing: at least 10 links per provider, including one guaranteed-dead one so
