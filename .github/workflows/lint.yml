@@ -27,7 +27,8 @@ jobs:
           python -m compileall -q \
             moon_engine.py moon_cli.py \
             moon_extract.py moon_bridge.py render_gui.py \
-            integration_http.py integration_web.py test_no_chrome.py
+            integration_http.py integration_web.py \
+            tests/conftest.py tests/test_no_chrome.py
 
   no-chrome:
     runs-on: ubuntu-latest
@@ -43,7 +44,7 @@ jobs:
       # Chrome and the network are stubbed at the moon_extract boundary, so this
       # job needs neither a browser nor a display -- only the engine's own imports.
       - name: Install engine dependencies
-        run: pip install "aiohttp>=3.9" "curl_cffi>=0.7"
+        run: pip install "aiohttp>=3.9" "curl_cffi>=0.7" "pytest==8.*"
 
       - name: A fuckingfast batch must not open a browser
-        run: python test_no_chrome.py
+        run: pytest tests/ -q

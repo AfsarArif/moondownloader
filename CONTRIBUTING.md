@@ -66,7 +66,7 @@ Layers inside the engine:
 ## Verification
 
 ```bash
-python test_no_chrome.py       # no browser for fuckingfast, exactly one for datanodes
+pytest tests/ -q               # no browser for fuckingfast, exactly one for datanodes
 python integration_http.py     # browser -> loopback HTTP -> engine
 python integration_web.py      # pywebview path
 python render_gui.py out/           # GUI renders + overflow audit
