@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `docs/CLI.md` — a reference for `moon_cli.py`: every flag, its default, and what it
+  actually controls (#37, @kushin25)
+- **The verification suite is a pytest suite.** The no-Chrome regression moved from a
+  standalone script into `tests/test_no_chrome.py` with a shared `tests/conftest.py`, and CI
+  runs `pytest tests/ -q` (#38, @pollychen-lab)
+
+### Changed
+- **The download engine exists once.** `download_file`, `Telemetry` and `ProxyPool` moved
+  into `moon_download.py`; `moon_engine.py` and `moon_cli.py` now import them instead of each
+  carrying their own copy (#41, @pollychen-lab). A fix in the download path is a one-file
+  change from here on, and the two copies can no longer drift apart
+
+### Fixed
+- The documented verification commands pointed at `python test_no_chrome.py`, which stopped
+  existing when the tests moved. They now point at `pytest tests/` (#43, @NanoRisk6)
+
 ## [2.0] — V2
 
 The GUI moved off tkinter. Both extraction methods were rebuilt in the 14.2–14.8 line
