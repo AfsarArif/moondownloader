@@ -75,6 +75,27 @@ way — `test_no_chrome.py` asserts it for both.
 
 ---
 
+## ⚖️ Scope and responsible use
+
+Moon Downloader is a **client for links you already have**. It automates the retrieval step — it does
+not search, index, or discover content, and it has no catalogue of any kind.
+
+- **What you download is your responsibility.** Copyright, licensing and the terms of the hosts you
+  point it at are yours to respect. This tool does not check any of that for you.
+- **The `datanodes.to` path automates a challenge the site presents to visitors.** That challenge is an
+  anti-bot control, and automating it may be contrary to that host's terms of service. Decide whether
+  that is acceptable for your use before you run it.
+- **The defaults are deliberately conservative** — 8 download streams, one shared browser, one identity.
+  They can be raised. Do not use this to hammer a host.
+- **No affiliation.** This project is not affiliated with, endorsed by, or supported by datanodes.to,
+  fuckingfast.co, Cloudflare, or Microsoft. All trademarks belong to their respective owners.
+- **Provided as-is under the MIT licence**, without warranty of any kind. See [LICENSE](LICENSE).
+
+Rightsholders and providers: if you want a path changed or removed, open an issue or use the contact
+in [SECURITY.md](SECURITY.md).
+
+---
+
 ## 🚀 Quick start
 
 ### One-click (Windows)
