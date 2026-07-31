@@ -11,6 +11,21 @@ Thanks for your interest in contributing!
    actually happened
 5. **Submit a pull request** describing what changed and why
 
+## Where to start
+
+Looking for something to pick up:
+
+- **[good first issue](https://github.com/LeyckerS/moondownloader/labels/good%20first%20issue)** —
+  scoped small, with the files to touch and the acceptance criteria already written out
+- **[help wanted](https://github.com/LeyckerS/moondownloader/labels/help%20wanted)** — everything
+  open to outside contributors, including the larger items
+
+Each issue says up front whether it needs Windows. Several do not — documentation, CI and dependency
+work all run anywhere, and the no-Chrome test suite stubs the browser and the network at the
+`moon_extract` boundary so it runs on any OS.
+
+Comment on an issue before you start, so two people don't write the same patch.
+
 ## Architecture
 
 Two front-ends, one engine, one extraction layer.
