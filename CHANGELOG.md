@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only `subprocess.TimeoutExpired` and `OSError`, so a real failure surfaces instead of
   returning an empty path. Four other deliberate swallows in `moon_bridge.py`, `moon_cli.py`
   and `moon_download.py` now say why they are there (#54, @AdvaitVarhade)
+- **`--proxies` failed silently.** A misspelled path, or a file in a format the parser did not
+  recognise, loaded zero proxies and printed nothing — so a run started specifically to avoid
+  direct connections made them anyway, with no indication. `ProxyPool.load()` now returns
+  `(loaded, skipped)` and warns when an explicitly passed file is missing, when a file parses
+  to zero proxies, and how many lines it skipped. The implicit `proxies.txt` stays quiet when
+  absent, which is the normal no-proxy state (#48, @AdvaitVarhade)
 
 ## [2.0] — V2
 

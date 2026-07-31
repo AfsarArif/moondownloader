@@ -37,3 +37,14 @@ def test_missing_default_proxy(capsys):
     assert skipped == 0
     captured = capsys.readouterr()
     assert "WARNING: proxy file not found" not in captured.out
+
+def test_zero_parsed_proxies(capsys, tmp_path):
+    """A file that exists but parses to nothing is the case #42 was really about."""
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("invalid_line\njust_a_word\n")
+    pool = ProxyPool()
+    loaded, skipped = pool.load(str(proxy_file), is_default=True)
+    assert loaded == 0
+    assert skipped == 2
+    captured = capsys.readouterr()
+    assert "yielded 0 proxies" in captured.out
