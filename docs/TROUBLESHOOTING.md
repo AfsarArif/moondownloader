@@ -50,7 +50,7 @@ before, in the WebView GUI, the Tk GUI and the CLI alike.
 
 If you still see it, you are running pre-V2 files: check that `moon_extract.py`
 contains `class BrowserGate` and that `moon_engine.py` / `moon_cli.py` contain no bare
-`open_browser(` call. `python test_no_chrome.py` answers this in a
+`open_browser(` call. `pytest tests/ -q` answers this in a
 second.
 
 ## Chrome will not attach: "could not start chrome.exe on port 9222"

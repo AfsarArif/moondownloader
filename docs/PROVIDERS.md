@@ -69,7 +69,7 @@ link** and never before. A batch of nothing but fuckingfast links opens no brows
 does not even boot the Playwright driver; a batch with one datanodes link opens exactly
 one shared instance, however many extractors are running.
 
-`python test_no_chrome.py` asserts both, for the engine and for the CLI.
+`pytest tests/ -q` asserts both, for the engine and for the CLI.
 
 ---
 
@@ -82,4 +82,4 @@ one shared instance, however many extractors are running.
    Ask `BrowserGate.get()` for a browser **inside** the branch, never before it, or
    you reintroduce the launch-for-nothing bug.
 3. **Test** — 10+ links including one guaranteed-dead one, so dead-link detection is
-   exercised, plus `python test_no_chrome.py`.
+   exercised, plus `pytest tests/ -q`.

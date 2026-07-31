@@ -61,7 +61,7 @@ and **not one browser window**, because no datanodes link was in the batch.</sub
 Chrome is needed at all. A batch of `fuckingfast.co` links never launches it — not even the Playwright
 driver's node process. A batch containing one `datanodes.to` link opens exactly one shared Chrome, on
 demand, no matter how many extractors are running. The GUI and the CLI import the same gate, so they
-cannot diverge, and `test_no_chrome.py` asserts it for both in CI.
+cannot diverge, and `tests/test_no_chrome.py` asserts it for both in CI.
 
 **The UI pulls, Python never pushes.** The page requests `snapshot(cursor)` about twelve times a
 second instead of the engine writing into it. Every DOM write stays on the page's own timeline, so a
@@ -100,7 +100,7 @@ extractors are running. The screenshot above is that fix, visible: 124 fuckingfa
 195.7 MB/s with no browser window anywhere.
 
 One `BrowserGate` in `moon_extract.py` owns that decision, so the GUI and the CLI behave the same
-way — `test_no_chrome.py` asserts it for both.
+way — `tests/test_no_chrome.py` asserts it for both.
 
 ---
 
@@ -265,14 +265,14 @@ Place next to the scripts:
 ## ✅ Verification
 
 ```bash
-python test_no_chrome.py       # engine + CLI: no browser for fuckingfast, exactly one for datanodes
+pytest tests/ -q       # engine + CLI: no browser for fuckingfast, exactly one for datanodes
 python integration_http.py     # browser → loopback HTTP → engine (the path start.bat takes)
 python integration_web.py      # pywebview path
 python render_gui.py out/           # renders at 2554x1400 and 1440x900 + overflow audit
 python moon_engine.py          # headless engine: prints a snapshot and exits
 ```
 
-`test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no browser,
+`tests/test_no_chrome.py` stubs Chrome and the network at the `moon_extract` boundary, so it needs no browser,
 no display and no Playwright install — it runs in CI on every push (`.github/workflows/lint.yml`).
 
 ---
