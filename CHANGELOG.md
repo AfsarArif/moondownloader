@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `moon_cli.py --version`, and the version is now recorded in both report flavours: the
   CLI log header and JSON report gained it, the engine JSON report gained it for parity.
   One `VERSION` constant, imported everywhere (#61, @Moferanoluwa)
+- `docs/CLI.md` documented the pre-#48 `--proxies` behaviour — that a missing proxy file is
+  silent — which is the opposite of what the code does now. The row and a new prose block
+  distinguish the four real cases, including that the zero-yield warning fires for the
+  implicit default too (#63, @Moferanoluwa)
 - **The verification suite is a pytest suite.** The no-Chrome regression moved from a
   standalone script into `tests/test_no_chrome.py` with a shared `tests/conftest.py`, and CI
   runs `pytest tests/ -q` (#38, @pollychen-lab)

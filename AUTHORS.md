@@ -37,7 +37,7 @@ In order of first contribution:
 | [@pollychen-lab](https://github.com/pollychen-lab) | the pytest suite (#38) **and the shared download engine (#41)** |
 | [@NanoRisk6](https://github.com/NanoRisk6) | pointed the documented verification commands at `pytest tests/` after the test move (#43) |
 | [@AdvaitVarhade](https://github.com/AdvaitVarhade) | narrowed `native_dialog`'s exception handling and documented four deliberate swallows (#54) |
-| [@Moferanoluwa](https://github.com/Moferanoluwa) | added `--version` and made both report flavours record which build wrote them (#61) |
+| [@Moferanoluwa](https://github.com/Moferanoluwa) | added `--version` and made both report flavours record which build wrote them (#61), then corrected the `--proxies` documentation that #48 had made stale (#63) |
 
 Dependabot handles the dependency and action bumps.
 
