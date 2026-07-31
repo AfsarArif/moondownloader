@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `docs/CLI.md` — a reference for `moon_cli.py`: every flag, its default, and what it
   actually controls (#37, @kushin25)
+- `moon_cli.py --version`, and the version is now recorded in both report flavours: the
+  CLI log header and JSON report gained it, the engine JSON report gained it for parity.
+  One `VERSION` constant, imported everywhere (#61, @Moferanoluwa)
 - **The verification suite is a pytest suite.** The no-Chrome regression moved from a
   standalone script into `tests/test_no_chrome.py` with a shared `tests/conftest.py`, and CI
   runs `pytest tests/ -q` (#38, @pollychen-lab)
