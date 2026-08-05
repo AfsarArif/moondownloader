@@ -40,6 +40,7 @@ from moon_download import (
     _close_sess,
     _sanitize_filename,
     download_file,
+    count_usable_proxies,
 )
 
 # ── THEME ──────────────────────────────────────────────────────────────────────
@@ -137,6 +138,11 @@ class Engine:
         self._thread = None
         self._loop   = None
         self._gate   = None
+
+        self.proxy_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxies.txt")
+        self._proxy_mtime = 0.0
+        self._proxy_status = "none_configured"
+        self._last_proxy_check = 0.0
 
     def _inc(self, attr, delta=1):
         with self._lock: setattr(self, attr, getattr(self, attr) + delta)
@@ -521,8 +527,7 @@ class Engine:
             api_key=eff["dn_apikey"],
             captcha_wait=eff["dn_captcha"])
 
-        proxy_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxies.txt")
-        self._proxies, skipped = _PROXY_POOL.load(proxy_path, is_default=True)
+        self._proxies, skipped = _PROXY_POOL.load(self.proxy_path, is_default=True)
 
         n, d, r = eff["workers"], eff["dl_streams"], eff["retries"]
         self.log(f"▶  {len(urls)} links  ·  {n} extractors  ·  {d} streams  ·  {r} retries  ·  {VERSION}", "info")
@@ -628,6 +633,17 @@ class Engine:
             kills    = self._kills; dls = self._dls
             snap     = list(self._bytes_acc)
 
+        if not running:
+            self._get_proxy_status()
+        else:
+            proxy_count = self._proxies
+            if proxy_count > 0:
+                self._proxy_status = "loaded"
+            elif not os.path.exists(self.proxy_path):
+                self._proxy_status = "none_configured"
+            else:
+                self._proxy_status = "empty_file"
+
         now = time.monotonic()
         recent = [(t, b) for t, b in snap if t > now - 3.0]
         if len(recent) > 1:
@@ -677,6 +693,10 @@ class Engine:
             "log": lines,
             "cursor": new_cursor,
             "proxies": self._proxies,
+            "proxy_info": {
+                "status": self._proxy_status,
+                "count": self._proxies
+            },
             "tmp": self.scan_tmp() if not running else None,
         }
 
@@ -685,6 +705,35 @@ class Engine:
             for url in [u for u, r in self._tracked.items() if r.status in ("ok", "fail")]:
                 self._tracked.pop(url, None)
         return {"ok": True}
+
+    def _get_proxy_status(self):
+        # Only do disk i/o every 2 seconds
+        now = time.monotonic()
+        if now - self._last_proxy_check < 2.0:
+            return
+        self._last_proxy_check = now
+
+        # 1. Handle missing file
+        if not os.path.exists(self.proxy_path):
+            self._proxy_mtime = 0.0
+            self._proxies = 0
+            self._proxy_status = "none_configured"
+            return
+        # 2. File exists: was it modified?
+        mtime = os.path.getmtime(self.proxy_path)
+        if mtime > self._proxy_mtime:
+            self._proxy_mtime = mtime
+            try:
+                usable, skipped = count_usable_proxies(self.proxy_path)
+                self._proxies = usable
+            except OSError:
+                self._proxies = 0
+        # 3. Distinguish 0 valid proxies vs N valid proxies
+        if self._proxies == 0:
+            self._proxy_status = "empty_file"
+        else:
+            self._proxy_status = "loaded"
+        return
 
 # ── entry point ─────────────────────────────────────────────────────────────
 # There is no GUI in here. Start the app with:  python moon_bridge.py
