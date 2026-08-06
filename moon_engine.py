@@ -474,6 +474,11 @@ class Engine:
         "downloading": "download",
         "ok":          "ok",
         "fail":        "fail",
+        # A user-initiated stop is not a failure: the partial .tmp is kept and the
+        # file is resumable, so it reads as queued rather than red. Listed here
+        # explicitly — it already fell through the .get() default to the same
+        # value, but a status the engine can set belongs in the table.
+        "stopped":     "queue",
     }
     # The GUI shows active transfers first and keeps a tail of finished ones.
     # 40 was too short to be honest on a 124-file batch: the badge read "40"

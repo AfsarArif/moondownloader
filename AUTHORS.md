@@ -28,6 +28,7 @@ first contribution:
 | [@basisworks](https://github.com/basisworks) | documented that proxies cover downloads only — establishing that the fuckingfast `curl_cffi` session goes direct too, not just the datanodes browser (#128) |
 | [@PomPomSaturin](https://github.com/PomPomSaturin) | restored the dependency upper bounds without moving the floors, added a tested `constraints.txt`, and wrote the CI job that fails when a requirement has no upper bound — so they cannot be lost a third time (#136); made both worker gathers collect their failures instead of aborting on the first one, and name the worker that failed (#143) |
 | [@8nt0n](https://github.com/8nt0n) | made the proxy chip tell the truth before a run starts, distinguishing "no file" from "file with nothing usable in it", and extracted the line parser so the status check and the real load cannot disagree (#132) |
+| [@Allen58562](https://github.com/Allen58562) | made Stop interrupt transfers already in flight instead of waiting for them to finish, via a registry of per-download kill events signalled with `call_soon_threadsafe`, and gave a user-initiated stop its own `stopped` status so it is no longer counted as a stall kill and re-queued (#149) |
 
 Dependabot handles the dependency and action bumps.
 

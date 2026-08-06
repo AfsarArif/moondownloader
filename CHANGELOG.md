@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Stop now interrupts downloads already in flight.** `Engine.stop()` set the
+  stop flag and closed Chrome, but a transfer that had already started ran to
+  completion — on a large file the button appeared to do nothing for minutes.
+  The engine now keeps a registry of the kill event belonging to each active
+  download and signals them with `loop.call_soon_threadsafe(kill_evt.set)`,
+  which is what setting an `asyncio.Event` from the calling thread requires.
+  Entries are discarded in a `finally:` so the set cannot grow over a long run.
+  A stop is reported as `stopped` rather than as a stall kill, so the retry
+  path no longer re-queues the file and undoes the stop; the partial `.tmp` is
+  kept and stays resumable, and `failed_links.txt` is not written. Thanks to
+  [@Allen58562](https://github.com/Allen58562) (#65, #149).
+
 ## [4.0] — 2026-08-05
 
 Both providers changed the way they hand out links and every download stopped.
