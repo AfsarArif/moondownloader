@@ -29,6 +29,7 @@ first contribution:
 | [@PomPomSaturin](https://github.com/PomPomSaturin) | restored the dependency upper bounds without moving the floors, added a tested `constraints.txt`, and wrote the CI job that fails when a requirement has no upper bound — so they cannot be lost a third time (#136); made both worker gathers collect their failures instead of aborting on the first one, and name the worker that failed (#143) |
 | [@8nt0n](https://github.com/8nt0n) | made the proxy chip tell the truth before a run starts, distinguishing "no file" from "file with nothing usable in it", and extracted the line parser so the status check and the real load cannot disagree (#132) |
 | [@Allen58562](https://github.com/Allen58562) | made Stop interrupt transfers already in flight instead of waiting for them to finish, via a registry of per-download kill events signalled with `call_soon_threadsafe`, and gave a user-initiated stop its own `stopped` status so it is no longer counted as a stall kill and re-queued (#149) |
+| [@shard872](https://github.com/shard872) | made a full destination disk a run-level fatal condition instead of a per-file error — errno-based `ENOSPC` detection, a shared abort both front-ends observe, the folder and shortfall named in the live log, `.tmp` files preserved for resume, and a `memoryview` write loop so a short write on a nearly-full disk cannot truncate silently (#150) |
 
 Dependabot handles the dependency and action bumps.
 

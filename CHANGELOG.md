@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **A full destination disk no longer burns bandwidth it cannot write.** `ENOSPC`
+  was caught by the same catch-all that handles ordinary transfer errors, so the
+  queue kept going and the retry machinery kept re-fetching data that could never
+  land — measured on the run that opened the issue: 46 files, each downloading
+  for ~236s before failing, ~12 GB pulled and discarded, with nothing on screen
+  saying why. The first `ENOSPC` is now detected by `errno` and published as a
+  run-level fatal state; new queue intake and retries stop, active transfers
+  unwind at their next write boundary, and the live log names the folder and the
+  shortfall. Interrupted files keep their `.tmp` and stay resumable, and only the
+  URL that triggered it is recorded as failed — files stopped as a consequence
+  are reported `aborted` rather than each being blamed individually. Writes now
+  loop over a `memoryview`, because a short write on a nearly-full disk returns a
+  count instead of raising and would otherwise truncate the file silently.
+  Thanks to [@shard872](https://github.com/shard872) (#116, #150).
 - **Stop now interrupts downloads already in flight.** `Engine.stop()` set the
   stop flag and closed Chrome, but a transfer that had already started ran to
   completion — on a large file the button appeared to do nothing for minutes.
