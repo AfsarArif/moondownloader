@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`moon_cli.py` now reports the run's outcome in its exit code.** It previously
+  exited 0 whenever the run completed, whether one file failed or all of them
+  did, and 0 on Ctrl-C — so a script had no way to tell success from total
+  failure. The codes are now `0` all files succeeded, `1` some failed (also a
+  run stopped by a full disk, and an interrupt), `3` every URL failed, and `2` a
+  pre-flight problem that stopped the run from starting. All four are documented
+  in `docs/CLI.md` and covered by `tests/test_cli_exit_codes.py`.
+  Thanks to [@AdvaitVarhade](https://github.com/AdvaitVarhade) (#32, #153).
+
+### Changed
+- **The two pre-flight errors in `moon_cli.py` moved from exit code 1 to 2** — a
+  missing `--urls` file and a file containing no URLs. This matches argparse,
+  which already exits 2 on a usage error, so the CLI is now consistent with its
+  own parser. Scripts testing for a non-zero status are unaffected; one testing
+  for `1` specifically will need updating (#153).
+
 ### Fixed
 - **A full destination disk no longer burns bandwidth it cannot write.** `ENOSPC`
   was caught by the same catch-all that handles ordinary transfer errors, so the
