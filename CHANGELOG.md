@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **The `THEME` colour palette at the top of `moon_engine.py`** — fifteen
+  constants with no references anywhere. `moon_engine.py` was once *generated*
+  from a tkinter GUI (`moon_tk.py` via `build_engine.py`, both deleted in
+  `5f172d3`), and the palette was that GUI's, compiled into the output; deleting
+  the generator never touched what it had produced. The live interface takes its
+  colours from CSS custom properties in `web/styles.css`, which shares not one
+  hex value with the block. Thanks to
+  [@AashishGupta2007](https://github.com/AashishGupta2007) (#145, #159).
+
+### Fixed
+- **`ruff` ran five times per pull request**, once inside each Python version of
+  the byte-compile matrix, checking identical work every time — the linter's
+  result does not vary with the interpreter it is installed under, and
+  `ruff.toml` sets `target-version = "py310"` regardless. It is now a standalone
+  job that runs once. The `ruff==0.16.1` pin is unchanged, which is the point:
+  an unpinned linter turns unrelated pull requests red the day upstream adds a
+  rule. Thanks to [@nightcityblade](https://github.com/nightcityblade) (#81, #158).
+- **A test assertion that could not fail.** `assert result["ok"] == len(urls)`
+  was shared by four tests in `tests/test_no_chrome.py`. Through the two `run_cli`
+  callers `ok` was fabricated — the stubs write no files, so `done == 0` and the
+  helper substituted `len(urls)`, comparing a number with itself. Through the two
+  `run_engine` callers it is real, taken from the engine's own counter. It is now
+  asserted inline in the engine tests only, so the vacuous half is gone and the
+  half that works still fails when the engine drops a URL. Thanks to
+  [@XEDAB](https://github.com/XEDAB) (#155, #157).
+
 ### Added
 - **`moon_cli.py` now reports the run's outcome in its exit code.** It previously
   exited 0 whenever the run completed, whether one file failed or all of them
