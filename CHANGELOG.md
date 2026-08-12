@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The test suite could have made real network requests.** `tests/conftest.py`
+  stubbed `download_file` on `moon_cli` only — that one line sat outside the
+  loop that patches both front-ends, so `moon_engine` kept the real function.
+  Nothing failed, because the engine tests run in link-extraction mode and never
+  download; the suite's no-network promise was holding by accident. The stub is
+  now inside the loop, with a comment saying why it must stay there. Thanks to
+  [@XEDAB](https://github.com/XEDAB) (#160, #162).
+
+### Changed
+- **`pytest.ini`**, the project's first pytest configuration, carrying one
+  narrowly-matched `filterwarnings` entry for the `aiohttp.BasicAuth`
+  deprecation. The call itself has to stay: `proxy_auth` accepts nothing but a
+  `BasicAuth`, and moving the credentials into a header breaks HTTPS proxies,
+  which aiohttp authenticates on the `CONNECT` request rather than inside the
+  tunnel. The filter matches that one message rather than the category, so an
+  unrelated deprecation is still reported. Thanks to
+  [@Divesh-Kshirsagar](https://github.com/Divesh-Kshirsagar) (#151, #161).
+
 ### Removed
 - **The `THEME` colour palette at the top of `moon_engine.py`** — fifteen
   constants with no references anywhere. `moon_engine.py` was once *generated*
