@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The two files that control what CI checks were the two files CI did not
+  watch.** `ruff.toml` and `pytest.ini` matched no workflow's `paths` filter, so
+  a pull request touching only one of them ran no jobs at all — a rule could
+  have been added to ruff's ignore list, or the warning filter broadened to hide
+  every deprecation, and the checks would have stayed green and silent. Both are
+  now in the filter. Verified on `main` with a commit touching `ruff.toml` alone:
+  `Lint` fires, `Docs CLI Check` correctly does not. Thanks to
+  [@nightcityblade](https://github.com/nightcityblade) (#164, #165).
+
 ## [4.1] — 2026-08-12
 
 A maintenance release, and the first one written entirely by other people: every
