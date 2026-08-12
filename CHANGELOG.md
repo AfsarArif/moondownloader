@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.1] — 2026-08-10
+## [4.1] — 2026-08-12
 
 A maintenance release, and the first one written entirely by other people: every
 entry below came from an outside contributor. Two are bugs you can hit in normal
