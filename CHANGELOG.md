@@ -13,7 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **`Engine._LOG_MAX_LINES`** — defined once and read nowhere. Another constant
+  left over from when `moon_engine.py` was generated from a tkinter GUI; the log
+  ring is bounded by `collections.deque(maxlen=6000)` instead. Thanks to
+  [@mazi-eth](https://github.com/mazi-eth) (#80, #167).
+
 ### Fixed
+- **`docs-cli-check.yml` did not watch its own file on pull requests**, only on
+  push, so an edit to that workflow arrived with an empty check list. With #165
+  this completes the set: every configuration file that controls CI now triggers
+  the job it configures. Thanks to [@StefStrg](https://github.com/StefStrg) (#93, #168).
 - **The two files that control what CI checks were the two files CI did not
   watch.** `ruff.toml` and `pytest.ini` matched no workflow's `paths` filter, so
   a pull request touching only one of them ran no jobs at all — a rule could

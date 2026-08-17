@@ -32,6 +32,8 @@ first contribution:
 | [@shard872](https://github.com/shard872) | made a full destination disk a run-level fatal condition instead of a per-file error — errno-based `ENOSPC` detection, a shared abort both front-ends observe, the folder and shortfall named in the live log, `.tmp` files preserved for resume, and a `memoryview` write loop so a short write on a nearly-full disk cannot truncate silently (#150) |
 | [@nightcityblade](https://github.com/nightcityblade) | took `ruff` out of the Python version matrix so it runs once per pull request instead of five times over identical work — keeping the `ruff==0.16.1` pin, so upstream adding a rule still cannot turn an unrelated pull request red (#81, #158); put `ruff.toml` and `pytest.ini` into the workflow's paths filter, so the two files that decide what CI enforces can no longer be changed without CI running (#164, #165) |
 | [@Divesh-Kshirsagar](https://github.com/Divesh-Kshirsagar) | added the project's first `pytest.ini`, silencing the `aiohttp.BasicAuth` deprecation by exact message rather than by category — so the call that cannot yet be changed stops adding noise while a genuine future deprecation still surfaces (#151, #161) |
+| [@mazi-eth](https://github.com/mazi-eth) | removed `Engine._LOG_MAX_LINES`, a constant left over from when `moon_engine.py` was generated from a tkinter GUI — the log ring has been bounded by a `deque` maxlen instead (#80, #167) |
+| [@StefStrg](https://github.com/StefStrg) | made `docs-cli-check.yml` watch its own file on pull requests as it already did on push, so an edit to that workflow can no longer arrive with an empty check list (#93, #168) |
 
 Dependabot handles the dependency and action bumps.
 
