@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The `Extractors` slider implied a concurrency datanodes never gets.** It sits
+  under "COMMON — BOTH METHODS", but datanodes pages are capped by the `Pages`
+  setting (1–8), so setting 32 extractors bought nothing there — measured on the
+  run that opened the issue, fuckingfast kept ~40 of 48 download slots busy while
+  datanodes kept ~4. The control now carries a live note reading the effective
+  limit, `min(Extractors, Pages)`, updating from either slider and relabelled on
+  a language switch. The cap itself is deliberately unchanged: several identities
+  from one IP read as a bot farm to Turnstile. Thanks to
+  [@yhuikzdtguioaert](https://github.com/yhuikzdtguioaert) (#83, #169).
+
 ### Removed
 - **`Engine._LOG_MAX_LINES`** — defined once and read nowhere. Another constant
   left over from when `moon_engine.py` was generated from a tkinter GUI; the log
