@@ -35,6 +35,7 @@ first contribution:
 | [@mazi-eth](https://github.com/mazi-eth) | removed `Engine._LOG_MAX_LINES`, a constant left over from when `moon_engine.py` was generated from a tkinter GUI — the log ring has been bounded by a `deque` maxlen instead (#80, #167) |
 | [@StefStrg](https://github.com/StefStrg) | made `docs-cli-check.yml` watch its own file on pull requests as it already did on push, so an edit to that workflow can no longer arrive with an empty check list (#93, #168) |
 | [@yhuikzdtguioaert](https://github.com/yhuikzdtguioaert) | made the shared `Extractors` slider state the concurrency datanodes actually gets — `min(Extractors, Pages)`, live on both sliders and relabelled in both languages — instead of implying every worker can open a datanodes page (#83, #169) |
+| [@harshvardhan60792](https://github.com/harshvardhan60792) | added the regression test that fails when the engine reaches the real downloader instead of the stub, and gave `run_engine` a `mode` parameter so the no-Chrome suite can exercise download mode at all — it had only ever run link extraction, which is why the missing stub went unseen (#160, #170) |
 
 Dependabot handles the dependency and action bumps.
 

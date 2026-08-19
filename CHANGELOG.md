@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from one IP read as a bot farm to Turnstile. Thanks to
   [@yhuikzdtguioaert](https://github.com/yhuikzdtguioaert) (#83, #169).
 
+### Added
+- **A regression test for the `download_file` stub**, which fails when the engine
+  reaches the real downloader instead of the fixture — the gap #162 closed had no
+  test behind it. `run_engine` also gained a `mode` parameter: the no-Chrome suite
+  had only ever exercised link extraction, which is why the missing stub went
+  unseen. Thanks to [@harshvardhan60792](https://github.com/harshvardhan60792) (#160, #170).
+
 ### Removed
 - **`Engine._LOG_MAX_LINES`** — defined once and read nowhere. Another constant
   left over from when `moon_engine.py` was generated from a tkinter GUI; the log
