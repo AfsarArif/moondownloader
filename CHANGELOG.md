@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **The `E501` comment in `ruff.toml` claimed line length was "handled above
+  via line-length".** It is not handled anywhere: with `E501` switched off the
+  `line-length` value is a setting nothing reads, and CI runs `ruff check`
+  only — `ruff format` appears in no workflow. The comment now says so.
+  Verified with the CI's own `ruff==0.16.1` pin: a 206-character line passes
+  the repo config untouched. Thanks to
+  [@FlaggedATX](https://github.com/FlaggedATX) (#79, #171).
 - **The `Extractors` slider implied a concurrency datanodes never gets.** It sits
   under "COMMON — BOTH METHODS", but datanodes pages are capped by the `Pages`
   setting (1–8), so setting 32 extractors bought nothing there — measured on the
