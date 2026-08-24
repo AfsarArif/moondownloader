@@ -37,6 +37,7 @@ first contribution:
 | [@yhuikzdtguioaert](https://github.com/yhuikzdtguioaert) | made the shared `Extractors` slider state the concurrency datanodes actually gets — `min(Extractors, Pages)`, live on both sliders and relabelled in both languages — instead of implying every worker can open a datanodes page (#83, #169) |
 | [@harshvardhan60792](https://github.com/harshvardhan60792) | added the regression test that fails when the engine reaches the real downloader instead of the stub, and gave `run_engine` a `mode` parameter so the no-Chrome suite can exercise download mode at all — it had only ever run link extraction, which is why the missing stub went unseen (#160, #170) |
 | [@FlaggedATX](https://github.com/FlaggedATX) | corrected the `ruff.toml` comment that claimed line length was handled elsewhere — nothing enforces it, and the file now says so — on their first pull request (#79, #171) |
+| [@snowyukitty](https://github.com/snowyukitty) | removed the double-count of the final write buffer in `bytes_acc`, which made every small file's bytes count twice in the totals, and pinned the accounting with nine regression tests whose expectations are read from the chunks the fake session actually delivered rather than from a model of the loop (#172, #175) |
 
 Dependabot handles the dependency and action bumps.
 

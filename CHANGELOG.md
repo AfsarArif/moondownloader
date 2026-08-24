@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **A completed file's final write buffer was counted twice in `bytes_acc`.**
+  Every chunk is appended as it arrives, and the tail flush then re-appended
+  the joined leftover buffer — so any transfer below the 16 MiB write buffer
+  counted exactly double in `bytes_total`, the Downloaded card, the CLI totals
+  and the ETA's average-file term. Measured before fixing: a 5 MiB transfer
+  recorded 10 MiB. The duplicate append (arrived with #150's write-buffering)
+  is gone, and nine regression tests pin every byte to exactly one entry —
+  with a negative control showing 6 of them fail on the unfixed code. Thanks
+  to [@snowyukitty](https://github.com/snowyukitty) (#172, #175).
 - **The `E501` comment in `ruff.toml` claimed line length was "handled above
   via line-length".** It is not handled anywhere: with `E501` switched off the
   `line-length` value is a setting nothing reads, and CI runs `ruff check`
